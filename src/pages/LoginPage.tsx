@@ -11,7 +11,7 @@ const FEATURES = [
 ];
 
 export default function LoginPage() {
-  const { isLoggedIn, isLoading, signInWithGoogle } = useAuth();
+  const { isLoggedIn, isLoading, signInWithGoogle, enterGuestMode } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function LoginPage() {
 
           {/* Guest mode */}
           <button
-            onClick={() => navigate("/")}
+            onClick={() => { enterGuestMode(); navigate("/"); }}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-5 py-3.5 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground active:scale-95"
           >
             Browse as guest

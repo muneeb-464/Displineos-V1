@@ -14,7 +14,9 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
+  isGuest: boolean;
   isLoading: boolean;
+  enterGuestMode: () => void;
   signInWithGoogle: () => void;
   signOut: () => Promise<void>;
   signInPromptOpen: boolean;
@@ -28,6 +30,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(() => sessionStorage.getItem("guest") === "1");
   const [signInPromptOpen, setSignInPromptOpen] = useState(false);
 
   useEffect(() => {
@@ -35,11 +38,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .get<User>(`${API}/auth/me`, { withCredentials: true })
       .then(async (res) => {
         setUser(res.data);
+        setIsGuest(false);
+        sessionStorage.removeItem("guest");
         useStore.getState().setAuthenticated(true);
         await useStore.getState().syncFromServer();
       })
       .catch(() => setUser(null))
       .finally(() => setIsLoading(false));
+  }, []);
+
+  const enterGuestMode = useCallback(() => {
+    sessionStorage.setItem("guest", "1");
+    setIsGuest(true);
   }, []);
 
   const signInWithGoogle = () => {
@@ -50,6 +60,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
     useStore.getState().setAuthenticated(false);
     useStore.getState().clearAllState();
+    sessionStorage.removeItem("guest");
+    setIsGuest(false);
     setUser(null);
   };
 
@@ -62,8 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, isLoggedIn: !!user, isLoading,
-      signInWithGoogle, signOut,
+      user, isLoggedIn: !!user, isGuest, isLoading,
+      enterGuestMode, signInWithGoogle, signOut,
       signInPromptOpen, openSignInPrompt, closeSignInPrompt, requireAuth,
     }}>
       {children}
