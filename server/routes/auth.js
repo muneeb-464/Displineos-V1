@@ -8,10 +8,11 @@ const User = require("../models/User");
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  sameSite: "strict",
+  sameSite: "lax",      // ← change from "strict" to "lax"
   secure: process.env.NODE_ENV === "production",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
+
 
 // Configure Google strategy
 passport.use(
