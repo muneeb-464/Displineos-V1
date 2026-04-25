@@ -23,6 +23,7 @@ export default function Planner() {
   const startDay = useStore((s) => s.startDay);
   const settings = useStore((s) => s.settings);
   const namazReminders = Object.values(settings.prayerReminders).filter(Boolean).length;
+  const showNamazInLog = settings.showNamazInLog;
   const isToday = date === today;
 
   const [panelOpen, setPanelOpen] = useState(false);
@@ -129,11 +130,13 @@ export default function Planner() {
             <p className="text-xs text-muted-foreground mt-2">Target: {settings.targetProductiveHours}h</p>
           </div>
 
-          <div className="surface-card p-5">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Planned Namaz</p>
-            <p className="font-display text-5xl font-bold mt-3">{namazReminders}<span className="text-2xl text-muted-foreground">/5</span></p>
-            <p className="text-xs text-muted-foreground mt-2">Reminders enabled in settings</p>
-          </div>
+          {showNamazInLog && (
+            <div className="surface-card p-5">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Planned Namaz</p>
+              <p className="font-display text-5xl font-bold mt-3">{namazReminders}<span className="text-2xl text-muted-foreground">/5</span></p>
+              <p className="text-xs text-muted-foreground mt-2">Reminders enabled in settings</p>
+            </div>
+          )}
 
           <Button
             onClick={() => { startDay(date); navigate("/log"); }}

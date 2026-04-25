@@ -82,7 +82,7 @@ export default function Dashboard() {
         )}
 
         {/* Three stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+        <div className={`grid grid-cols-1 gap-5 mb-6 ${settings.showNamazInLog ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
           <StatCard
             label="Productive Hours"
             value={dayStarted ? `${score.productiveHours.toFixed(1)}h` : "—"}
@@ -97,12 +97,14 @@ export default function Dashboard() {
             variant="danger"
             progress={dayStarted ? Math.min(1, score.wastedHours / 4) : 0}
           />
-          <StatCard
-            label="Namaz"
-            value={`${score.namazCompleted}/5`}
-            sub="completed"
-            icon={<Moon className="h-4 w-4 text-primary" />}
-          />
+          {settings.showNamazInLog && (
+            <StatCard
+              label="Namaz"
+              value={`${score.namazCompleted}/5`}
+              sub="completed"
+              icon={<Moon className="h-4 w-4 text-primary" />}
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
@@ -166,23 +168,25 @@ export default function Dashboard() {
         </div>
 
         {/* Namaz tracker — editable for any date including past days */}
-        <div className="surface-card p-4 sm:p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Moon className="h-5 w-5 text-primary" />
-              <h3 className="font-display text-xl font-bold">Namaz</h3>
+        {settings.showNamazInLog && (
+          <div className="surface-card p-4 sm:p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Moon className="h-5 w-5 text-primary" />
+                <h3 className="font-display text-xl font-bold">Namaz</h3>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {score.namazCompleted}/5 completed
+                {dayStarted && score.namazCompleted < 5 && (
+                  <span className="ml-2 text-destructive text-xs">
+                    ({5 - score.namazCompleted} missed)
+                  </span>
+                )}
+              </span>
             </div>
-            <span className="text-sm text-muted-foreground">
-              {score.namazCompleted}/5 completed
-              {dayStarted && score.namazCompleted < 5 && (
-                <span className="ml-2 text-destructive text-xs">
-                  ({5 - score.namazCompleted} missed)
-                </span>
-              )}
-            </span>
+            <NamazTracker date={date} isStarted={dayStarted} />
           </div>
-          <NamazTracker date={date} isStarted={dayStarted} />
-        </div>
+        )}
 
         {/* Penalties */}
         <div className="surface-card p-4 sm:p-6 border-l-4 border-l-destructive">

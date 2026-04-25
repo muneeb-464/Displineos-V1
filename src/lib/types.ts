@@ -57,7 +57,8 @@ export interface Settings {
   streakMinHours: number;
   prayerReminders: Record<PrayerName, boolean>;
   userName: string;
-  rank: string;
+  showNamazInLog: boolean;
+  namazInScore: boolean;
 }
 
 export interface DayPlanState {

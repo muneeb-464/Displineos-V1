@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStore, PRAYERS } from "@/lib/store";
+import { useStore, PRAYERS, useTotalPoints, getRankInfo, RANKS } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { cn, todayISO, uid } from "@/lib/utils";
+import { cn, todayISO } from "@/lib/utils";
 import { CategoryType } from "@/lib/types";
 import { Trash2, Plus, FolderPlus, LogOut } from "lucide-react";
 import { toast } from "sonner";
@@ -63,11 +63,27 @@ function ProfileSection() {
   const { settings, updateSettings } = useStore();
   const { user, isLoggedIn, signOut, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const totalPoints = useTotalPoints();
+  const rankInfo = getRankInfo(totalPoints);
+
+  // Auto-sync display name from Google account
+  useEffect(() => {
+    if (isLoggedIn && user && settings.userName === "Operator") {
+      updateSettings({ userName: user.name });
+    }
+  }, [isLoggedIn, user]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/login", { replace: true });
   };
+
+  // Find next rank for progress bar
+  const currentRankIdx = RANKS.findIndex((r) => r.name === rankInfo.name);
+  const nextRank = RANKS[currentRankIdx + 1] ?? null;
+  const progressPct = nextRank
+    ? Math.min(100, ((totalPoints - rankInfo.min) / (nextRank.min - rankInfo.min)) * 100)
+    : 100;
 
   return (
     <div>
@@ -102,25 +118,123 @@ function ProfileSection() {
         </div>
       )}
 
-      <div className="flex items-center gap-5 mb-8">
-        <div className="h-24 w-24 rounded-full bg-secondary text-secondary-foreground grid place-items-center font-display text-3xl font-bold">
-          {settings.userName.split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase()}
-        </div>
-        <div>
-          <h3 className="font-display text-2xl font-bold">{settings.userName}</h3>
-          <span className="chip chip-primary mt-1 inline-flex">RANK: {settings.rank.toUpperCase()}</span>
+      {/* Display name */}
+      <div className="surface-card p-5 mb-6">
+        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Display name</Label>
+        <Input value={settings.userName} onChange={(e) => updateSettings({ userName: e.target.value })} className="mt-2 bg-surface-2 border-border" />
+      </div>
+
+      {/* ── Rank Hero Card ── */}
+      <div
+        className="relative mb-4 rounded-2xl overflow-hidden border"
+        style={{ borderColor: rankInfo.color + "55", background: `linear-gradient(135deg, ${rankInfo.color}18 0%, transparent 60%)` }}
+      >
+        {/* Glow blob */}
+        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full blur-3xl opacity-20" style={{ backgroundColor: rankInfo.color }} />
+
+        <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-5 p-6">
+          {/* Avatar + icon */}
+          <div className="relative shrink-0">
+            {isLoggedIn && user?.profilePicture ? (
+              <img src={user.profilePicture} alt={user.name} referrerPolicy="no-referrer"
+                className="h-20 w-20 rounded-full object-cover ring-4"
+                style={{ ringColor: rankInfo.color + "55" }} />
+            ) : (
+              <div className="h-20 w-20 rounded-full bg-surface-3 grid place-items-center font-display text-2xl font-bold ring-4"
+                style={{ outlineColor: rankInfo.color, boxShadow: `0 0 0 4px ${rankInfo.color}44` }}>
+                {(isLoggedIn && user ? user.name : settings.userName).split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            {/* rank icon badge */}
+            <div className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full border-2 border-background bg-surface-1 grid place-items-center text-base" style={{ borderColor: rankInfo.color + "66" }}>
+              {rankInfo.icon}
+            </div>
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0 text-center sm:text-left">
+            <p className="text-xs uppercase tracking-widest mb-1" style={{ color: rankInfo.color }}>{rankInfo.tierIcon} {rankInfo.tier} Tier</p>
+            <h3 className="font-display text-3xl font-bold leading-tight">{isLoggedIn && user ? user.name : settings.userName}</h3>
+            <p className="font-display text-4xl font-black mt-1 tracking-tight" style={{ color: rankInfo.color }}>{rankInfo.name}</p>
+
+            {/* Progress to next rank */}
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+                <span className="font-semibold tabular-nums">{totalPoints.toLocaleString()} pts</span>
+                {nextRank
+                  ? <span>{nextRank.icon} {nextRank.name} in {(nextRank.min - totalPoints).toLocaleString()} pts</span>
+                  : <span className="font-semibold" style={{ color: rankInfo.color }}>MAX RANK</span>
+                }
+              </div>
+              <div className="h-2 rounded-full overflow-hidden bg-surface-3">
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${progressPct}%`, background: `linear-gradient(90deg, ${rankInfo.color}cc, ${rankInfo.color})` }} />
+              </div>
+              {nextRank && (
+                <p className="text-[11px] text-muted-foreground mt-1 text-right">{progressPct.toFixed(0)}% to {nextRank.name}</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-      <div className="space-y-4 max-w-md">
-        <div>
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Display name</Label>
-          <Input value={settings.userName} onChange={(e) => updateSettings({ userName: e.target.value })} className="mt-2 bg-surface-2 border-border" />
-        </div>
-        <div>
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Rank</Label>
-          <Input value={settings.rank} onChange={(e) => updateSettings({ rank: e.target.value })} className="mt-2 bg-surface-2 border-border" />
+
+      {/* ── Rank Ladder ── */}
+      <div className="mb-6">
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Rank Ladder</p>
+        <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
+          {(["Beginner", "Growth", "Advanced", "Pro", "Ultimate"] as const).map((tier) => {
+            const tierRanks = RANKS.filter((r) => r.tier === tier);
+            const tierColor = tierRanks[0].color;
+            const tierIcon = tierRanks[0].tierIcon;
+            return (
+              <div key={tier}>
+                {/* Tier label row */}
+                <div className="flex items-center gap-2 px-4 py-2 bg-surface-2">
+                  <span className="text-sm">{tierIcon}</span>
+                  <span className="text-xs font-bold tracking-widest uppercase" style={{ color: tierColor }}>{tier}</span>
+                </div>
+                {/* Ranks */}
+                {tierRanks.map((r) => {
+                  const rIdx = RANKS.findIndex((x) => x.name === r.name);
+                  const isCurrent = r.name === rankInfo.name;
+                  const isPast = rIdx < currentRankIdx;
+                  const isLocked = rIdx > currentRankIdx;
+                  return (
+                    <div
+                      key={r.name}
+                      className={cn("flex items-center gap-3 px-4 py-3 transition", isLocked ? "opacity-40" : "opacity-100")}
+                      style={isCurrent ? { backgroundColor: tierColor + "15" } : undefined}
+                    >
+                      {/* Icon */}
+                      <span className={cn("text-xl w-8 text-center shrink-0", isLocked ? "grayscale" : "")}>{r.icon}</span>
+
+                      {/* Name + range */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm leading-none" style={{ color: isLocked ? undefined : tierColor }}>{r.name}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                          {r.max === Infinity ? `${r.min.toLocaleString()}+ pts` : `${r.min.toLocaleString()} – ${r.max.toLocaleString()} pts`}
+                        </p>
+                      </div>
+
+                      {/* Status badge */}
+                      {isCurrent && (
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white" style={{ backgroundColor: tierColor }}>Current</span>
+                      )}
+                      {isPast && (
+                        <span className="shrink-0 h-5 w-5 rounded-full grid place-items-center text-[10px] font-bold text-white" style={{ backgroundColor: tierColor + "99" }}>✓</span>
+                      )}
+                      {isLocked && (
+                        <span className="shrink-0 text-muted-foreground text-sm">🔒</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       </div>
+
     </div>
   );
 }
@@ -143,8 +257,34 @@ function GoalsSection() {
           className="mt-6"
         />
       </div>
+      <div className="surface-card p-6 mb-6">
+        <h3 className="font-display text-xl font-bold mb-1">Namaz &amp; Score</h3>
+        <p className="text-sm text-muted-foreground mb-4">Control how namaz affects your points and where it appears.</p>
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Count Namaz in Score</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Add prayer bonuses (+5 pts each) and missed prayer penalties to your daily score.</p>
+            </div>
+            <Switch
+              checked={settings.namazInScore}
+              onCheckedChange={(v) => updateSettings({ namazInScore: v })}
+            />
+          </div>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Show Tracker in Log &amp; Planner</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Display the Namaz prayer tracker widget on those pages.</p>
+            </div>
+            <Switch
+              checked={settings.showNamazInLog}
+              onCheckedChange={(v) => updateSettings({ showNamazInLog: v })}
+            />
+          </div>
+        </div>
+      </div>
       <div className="surface-card p-6">
-        <h3 className="font-display text-xl font-bold mb-4">Namaz reminders</h3>
+        <h3 className="font-display text-xl font-bold mb-4">Prayer reminders</h3>
         <div className="space-y-3">
           {PRAYERS.map((p) => (
             <div key={p} className="flex items-center justify-between">
@@ -165,12 +305,12 @@ function CategoriesSection() {
   const { categories, addCategory, updateCategory, deleteCategory } = useStore();
   const [name, setName] = useState("");
   const [type, setType] = useState<CategoryType>("productive");
-  const [pts, setPts] = useState(2);
+  const [pts, setPts] = useState(10);
 
   const add = () => {
     if (!name.trim()) return;
     addCategory({ name: name.trim(), type, pointsPerHour: pts });
-    setName(""); setPts(2);
+    setName(""); setPts(10);
     toast.success("Category added.");
   };
 
@@ -213,51 +353,50 @@ function CategoriesSection() {
   );
 }
 
-function PointsSection() {
-  const { settings, updateSettings } = useStore();
-  const fields: { k: keyof typeof settings; label: string }[] = [
-    { k: "productiveRate", label: "Productive rate (pts/hr)" },
-    { k: "wastedRate", label: "Wasted rate (pts/hr)" },
-    { k: "namazBonus", label: "Namaz bonus (pts)" },
-    { k: "namazPenalty", label: "Namaz penalty (pts)" },
-    { k: "dailyTargetPenalty", label: "Daily target penalty (pts)" },
-    { k: "deepWorkMultiplier", label: "Deep work multiplier" },
+function PointsSection(): JSX.Element {
+  const { settings } = useStore();
+
+  const fixedRates = [
+    { label: "Productive", description: "Earned per hour of productive work", value: `+${settings.productiveRate} pts/hr`, color: "hsl(var(--primary))" },
+    { label: "Deep Work", description: "Productive × deep work multiplier", value: `+${settings.productiveRate * settings.deepWorkMultiplier} pts/hr`, color: "hsl(var(--primary))" },
+    { label: "Wasted", description: "Deducted per hour of wasted time", value: `−${settings.wastedRate} pts/hr`, color: "hsl(var(--destructive))" },
+    { label: "Namaz bonus", description: "Earned per prayer completed", value: `+${settings.namazBonus} pts`, color: "#22c55e" },
+    { label: "Missed prayer", description: "Deducted per prayer missed", value: `−${settings.namazPenalty} pts`, color: "hsl(var(--destructive))" },
+    { label: "Daily target miss", description: "Deducted if productive hours < target", value: `−${settings.dailyTargetPenalty} pts`, color: "hsl(var(--destructive))" },
   ];
-
-  const [pending, setPending] = useState<Record<string, number>>(
-    () => Object.fromEntries(fields.map((f) => [f.k, settings[f.k] as number]))
-  );
-  const isDirty = fields.some((f) => pending[f.k] !== (settings[f.k] as number));
-
-  const save = () => {
-    updateSettings(pending as any);
-    toast.success("Settings saved successfully.");
-  };
 
   return (
     <div>
       <h2 className="font-display text-3xl font-bold mb-2">Points System</h2>
-      <p className="text-sm text-muted-foreground mb-6">Changes are pending until you click Save.</p>
-      <div className="grid sm:grid-cols-2 gap-4 mb-6">
-        {fields.map((f) => (
-          <div key={f.k} className={cn("surface-card p-5 transition", pending[f.k] !== (settings[f.k] as number) && "ring-1 ring-primary/40")}>
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">{f.label}</Label>
-            <Input
-              type="number"
-              value={pending[f.k]}
-              onChange={(e) => setPending((p) => ({ ...p, [f.k]: +e.target.value }))}
-              className="mt-2 bg-surface-2 border-border font-display text-2xl h-14"
-            />
+      <p className="text-sm text-muted-foreground mb-6">
+        These values are fixed and cannot be changed — they keep the ranking fair for everyone.
+      </p>
+
+      <div className="grid sm:grid-cols-2 gap-3 mb-6">
+        {fixedRates.map((item) => (
+          <div key={item.label} className="surface-card p-5 flex items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">{item.label}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+            </div>
+            <span className="font-display text-xl font-bold tabular-nums shrink-0" style={{ color: item.color }}>
+              {item.value}
+            </span>
           </div>
         ))}
       </div>
-      <Button
-        onClick={save}
-        disabled={!isDirty}
-        className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary-glow disabled:opacity-40"
-      >
-        Save settings
-      </Button>
+
+      <div className="surface-card p-5 border-l-4 border-l-muted-foreground">
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">How scoring works</p>
+        <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
+          <li>Every logged hour in a productive category earns points.</li>
+          <li>Deep Work blocks are multiplied by {settings.deepWorkMultiplier}×.</li>
+          <li>Wasted time deducts points from your daily total.</li>
+          <li>Completing all 5 prayers earns a full +{settings.namazBonus * 5} pts bonus.</li>
+          <li>Missing prayers and falling short of your daily target apply penalties.</li>
+          <li>Your total points across all days determines your rank.</li>
+        </ul>
+      </div>
     </div>
   );
 }

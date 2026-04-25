@@ -10,40 +10,40 @@
   :root {
     color-scheme: light;
 
-    /* Canvas — warm near-white (#fbf9f9) */
-    --background: 0 7% 98%;
+    /* Canvas — soft warm grey, easy on the eyes */
+    --background: 40 18% 94%;
     --foreground: 0 0% 7%;          /* #121212 secondary */
 
-    /* Cards use tertiary #F4F4F4 */
-    --card: 0 0% 96%;
+    /* Cards — warm off-white */
+    --card: 40 15% 97%;
     --card-foreground: 0 0% 7%;
 
-    --popover: 0 0% 100%;
+    --popover: 40 15% 97%;
     --popover-foreground: 0 0% 7%;
 
-    /* Primary — electric lime #E6F8A2, dark text on top */
-    --primary: 73 86% 80%;
-    --primary-foreground: 0 0% 7%;
-    --primary-glow: 73 86% 70%;
+    /* Primary — olive-lime, dark enough to read on white */
+    --primary: 73 65% 42%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 73 65% 35%;
 
     /* Secondary — near-black #121212 */
     --secondary: 0 0% 7%;
     --secondary-foreground: 0 0% 100%;
 
     /* Muted */
-    --muted: 0 0% 93%;
+    --muted: 40 12% 90%;
     --muted-foreground: 0 0% 44%;   /* #707070 neutral */
 
     /* Accent — soft lime tint for active chip backgrounds */
-    --accent: 73 70% 92%;
+    --accent: 73 60% 88%;
     --accent-foreground: 0 0% 7%;
 
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 85%;
-    --input: 0 0% 100%;
-    --ring: 73 86% 65%;
+    --border: 40 10% 83%;
+    --input: 40 15% 97%;
+    --ring: 73 65% 42%;
 
     --radius: 1rem;
 
@@ -52,23 +52,23 @@
     --cat-routine: 0 0% 44%;        /* #707070 neutral */
     --cat-wasted: 0 72% 50%;
 
-    /* Surface tiers */
-    --surface-1: 0 0% 100%;         /* pure white */
-    --surface-2: 0 0% 96%;          /* #F4F4F4 tertiary */
-    --surface-3: 0 0% 90%;
+    /* Surface tiers — warm, layered */
+    --surface-1: 40 15% 97%;        /* warm off-white */
+    --surface-2: 40 12% 93%;        /* warm light grey */
+    --surface-3: 40 10% 87%;        /* warm mid grey */
 
-    --shadow-glow: 0 0 24px hsl(73 86% 70% / 0.25);
+    --shadow-glow: 0 0 24px hsl(73 65% 42% / 0.25);
     --shadow-card: 0 1px 3px hsl(0 0% 0% / 0.06), 0 4px 16px hsl(0 0% 0% / 0.04);
 
     /* Sidebar stays dark (matches Sidebar.tsx hardcoded dark styles) */
     --sidebar-background: 0 0% 7%;
     --sidebar-foreground: 0 0% 65%;
-    --sidebar-primary: 73 86% 80%;
-    --sidebar-primary-foreground: 0 0% 7%;
+    --sidebar-primary: 73 65% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 15%;
-    --sidebar-accent-foreground: 73 86% 80%;
+    --sidebar-accent-foreground: 73 65% 42%;
     --sidebar-border: 0 0% 14%;
-    --sidebar-ring: 73 86% 80%;
+    --sidebar-ring: 73 65% 42%;
   }
 
   .dark {

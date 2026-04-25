@@ -20,6 +20,7 @@ export default function LogScreen() {
   const blocks = useStore((s) => s.blocks);
   const categories = useStore((s) => s.categories);
   const recent = useStore((s) => s.recentSubCategoryIds);
+  const showNamazInLog = useStore((s) => s.settings.showNamazInLog);
   const score = useDayScore(date);
 
   const startedDays = useStore((s) => s.startedDays);
@@ -121,15 +122,17 @@ export default function LogScreen() {
         )}
 
         {/* Namaz row */}
-        <div className="surface-card p-4 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">
-              Namaz {isToday ? "today" : formatDateLong(date)}
-            </p>
-            <p className="text-xs text-muted-foreground">{score.namazCompleted}/5 completed</p>
+        {showNamazInLog && (
+          <div className="surface-card p-4 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                Namaz {isToday ? "today" : formatDateLong(date)}
+              </p>
+              <p className="text-xs text-muted-foreground">{score.namazCompleted}/5 completed</p>
+            </div>
+            <NamazTracker date={date} isStarted={dayStarted} />
           </div>
-          <NamazTracker date={date} isStarted={dayStarted} />
-        </div>
+        )}
 
         <Timeline
           date={date}

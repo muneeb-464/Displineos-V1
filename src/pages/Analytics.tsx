@@ -108,6 +108,7 @@ function RangeView({
   const namaz = useStore((s) => s.namaz);
   const categories = useStore((s) => s.categories);
   const startedDays = useStore((s) => s.startedDays);
+  const showNamaz = useStore((s) => s.settings.showNamazInLog);
   const report = useMemo(() => buildAggregateReport(dates), [dates, blocks, namaz, categories, startedDays]);
   const maxScore = Math.max(...report.dayScores.map((day) => day.total), 1);
   const totalBreakdownHours = report.breakdown.reduce((sum, item) => sum + item.hours, 0) || 1;
@@ -141,11 +142,11 @@ function RangeView({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className={cn("grid gap-4 sm:grid-cols-2", showNamaz ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
         <MiniStat label="Total score" value={report.totalScore.toLocaleString()} tone="primary" />
         <MiniStat label="Productive hrs" value={`${report.productiveHours.toFixed(1)}h`} />
         <MiniStat label="Wasted hrs" value={`${report.wastedHours.toFixed(1)}h`} tone="destructive" />
-        <MiniStat label="Namaz rate" value={`${report.namazCompletionRate.toFixed(0)}%`} />
+        {showNamaz && <MiniStat label="Namaz rate" value={`${report.namazCompletionRate.toFixed(0)}%`} />}
         <MiniStat label="Active days" value={report.activeDays.toString()} />
       </div>
 
@@ -265,26 +266,28 @@ function RangeView({
         </div>
       </div>
 
-      <div className="surface-card overflow-x-auto p-4 sm:p-6">
-        <h3 className="mb-4 font-display text-xl font-bold">Namaz completion</h3>
-        <div className="grid min-w-[720px] grid-cols-[72px_repeat(var(--days),minmax(52px,1fr))] gap-2 text-xs" style={{ ["--days" as string]: dates.length }}>
-          <div />
-          {dates.map((date) => <div key={date} className="text-center text-muted-foreground">{format(parseISODateLocal(date), dates.length > 15 ? "d" : "EEE")}</div>)}
-          {PRAYERS.map((prayer) => (
-            <Fragment key={prayer}>
-              <div className="py-2 text-muted-foreground">{prayer}</div>
-              {dates.map((date) => {
-                const status = getPrayerStatus(date, prayer, namaz);
-                return (
-                  <div key={date + prayer} className={cn("grid h-9 place-items-center rounded-md font-medium", status === "done" ? "bg-primary text-primary-foreground" : status === "missed" ? "bg-destructive/20 text-destructive" : "bg-surface-2 text-muted-foreground")}>
-                    {status === "done" ? "✓" : status === "missed" ? "✕" : "·"}
-                  </div>
-                );
-              })}
-            </Fragment>
-          ))}
+      {showNamaz && (
+        <div className="surface-card overflow-x-auto p-4 sm:p-6">
+          <h3 className="mb-4 font-display text-xl font-bold">Namaz completion</h3>
+          <div className="grid min-w-[720px] grid-cols-[72px_repeat(var(--days),minmax(52px,1fr))] gap-2 text-xs" style={{ ["--days" as string]: dates.length }}>
+            <div />
+            {dates.map((date) => <div key={date} className="text-center text-muted-foreground">{format(parseISODateLocal(date), dates.length > 15 ? "d" : "EEE")}</div>)}
+            {PRAYERS.map((prayer) => (
+              <Fragment key={prayer}>
+                <div className="py-2 text-muted-foreground">{prayer}</div>
+                {dates.map((date) => {
+                  const status = getPrayerStatus(date, prayer, namaz);
+                  return (
+                    <div key={date + prayer} className={cn("grid h-9 place-items-center rounded-md font-medium", status === "done" ? "bg-primary text-primary-foreground" : status === "missed" ? "bg-destructive/20 text-destructive" : "bg-surface-2 text-muted-foreground")}>
+                      {status === "done" ? "✓" : status === "missed" ? "✕" : "·"}
+                    </div>
+                  );
+                })}
+              </Fragment>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

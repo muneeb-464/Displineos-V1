@@ -52,27 +52,28 @@ interface AppState {
 }
 
 const defaultSettings: Settings = {
-  productiveRate: 2,
-  wastedRate: 2,
-  namazBonus: 20,
-  namazPenalty: 20,
+  productiveRate: 10,
+  wastedRate: 5,
+  namazBonus: 5,
+  namazPenalty: 5,
   dailyTargetPenalty: 12,
   deepWorkMultiplier: 2,
   targetProductiveHours: 8,
   streakMinHours: 4,
   prayerReminders: { Fajr: true, Zuhr: true, Asr: true, Maghrib: true, Isha: true },
   userName: "Operator",
-  rank: "Disciplined",
+  showNamazInLog: true,
+  namazInScore: true,
 };
 
 const seedCategories: SubCategory[] = [
-  { id: "c-deepwork", name: "Deep Work", type: "productive", pointsPerHour: 2, isDeepWork: true },
-  { id: "c-learning", name: "Learning", type: "productive", pointsPerHour: 2 },
-  { id: "c-admin", name: "Admin", type: "productive", pointsPerHour: 2 },
+  { id: "c-deepwork", name: "Deep Work", type: "productive", pointsPerHour: 10, isDeepWork: true },
+  { id: "c-learning", name: "Learning", type: "productive", pointsPerHour: 10 },
+  { id: "c-admin", name: "Admin", type: "productive", pointsPerHour: 10 },
   { id: "c-workout", name: "Workout", type: "routine", pointsPerHour: 0 },
   { id: "c-meal", name: "Meal", type: "routine", pointsPerHour: 0 },
-  { id: "c-social", name: "Social Media", type: "wasted", pointsPerHour: 2 },
-  { id: "c-doom", name: "Doom Scrolling", type: "wasted", pointsPerHour: 2 },
+  { id: "c-social", name: "Social Media", type: "wasted", pointsPerHour: 5 },
+  { id: "c-doom", name: "Doom Scrolling", type: "wasted", pointsPerHour: 5 },
 ];
 
 export const useStore = create<AppState>()(
@@ -145,6 +146,13 @@ export const useStore = create<AppState>()(
           ]);
           const d = dataRes.data;
           const s = settingsRes.data;
+          // Preserve local-only UI prefs (showNamazInLog, namazInScore) that may not
+          // exist in older server data, so refresh never resets them to defaults.this is my page just for writeing bcz kakfohir
+          const localPrefs = {
+            showNamazInLog: get().settings.showNamazInLog,
+            namazInScore: get().settings.namazInScore,
+          };
+          
           set({
             blocks: d.blocks?.length ? d.blocks : [],
             namaz: d.namaz?.length ? d.namaz : [],
@@ -152,7 +160,9 @@ export const useStore = create<AppState>()(
             startedDays: d.startedDays?.length ? d.startedDays : [],
             categories: s.categories?.length ? s.categories : seedCategories,
             templates: s.templates ?? [],
-            settings: s.scoringSettings ? { ...defaultSettings, ...s.scoringSettings } : defaultSettings,
+            settings: s.scoringSettings
+              ? { ...defaultSettings, ...s.scoringSettings, ...localPrefs }
+              : { ...defaultSettings, ...localPrefs },
           });
         } catch {
           // offline — localStorage fallback already loaded by persist middleware
@@ -179,7 +189,7 @@ export const useStore = create<AppState>()(
         categories: state.categories,
         templates: state.templates,
         settings: state.settings,
-        recentSubCategoryIds: state.recentSubCategoryIds,
+        recentSubCategoryIds:  state.recentSubCategoryIds,
       }),
     }
   )
@@ -271,8 +281,8 @@ export const computeDayScore = (date: string): DayScore => {
 
   const dayNamaz = namaz.filter((n) => n.date === date);
   const namazDone = dayNamaz.filter((n) => n.completed).length;
-  const namazPoints = namazDone * settings.namazBonus;
-  const missedPrayers = getMissedPrayers(date, dayNamaz);
+  const namazPoints = settings.namazInScore ? namazDone * settings.namazBonus : 0;
+  const missedPrayers = settings.namazInScore ? getMissedPrayers(date, dayNamaz) : [];
 
   const penalties: { label: string; pts: number }[] = [];
   if (missedPrayers.length > 0) {
@@ -307,6 +317,56 @@ export const useDayScore = (date: string): DayScore => {
   useStore((s) => s.categories);
   useStore((s) => s.startedDays);
   return computeDayScore(date);
+};
+
+// ---- Rank system ----
+
+export interface RankInfo {
+  name: string;
+  min: number;
+  max: number;
+  tier: string;
+  tierIcon: string;
+  icon: string;
+  color: string;
+}
+
+export const RANKS: RankInfo[] = [
+  // 🟢 Beginner Tier
+  { name: "Starter",     min: 0,     max: 50,    tier: "Beginner", tierIcon: "🟢", icon: "🌱", color: "#22c55e" },
+  { name: "Explorer",    min: 51,    max: 150,   tier: "Beginner", tierIcon: "🟢", icon: "🗺️",  color: "#22c55e" },
+  { name: "Builder",     min: 151,   max: 300,   tier: "Beginner", tierIcon: "🟢", icon: "🔨", color: "#22c55e" },
+  // 🔵 Growth Tier
+  { name: "Focused",     min: 301,   max: 600,   tier: "Growth",   tierIcon: "🔵", icon: "🎯", color: "#3b82f6" },
+  { name: "Achiever",    min: 601,   max: 1000,  tier: "Growth",   tierIcon: "🔵", icon: "🏆", color: "#3b82f6" },
+  { name: "Performer",   min: 1001,  max: 1500,  tier: "Growth",   tierIcon: "🔵", icon: "🎭", color: "#3b82f6" },
+  // 🟣 Advanced Tier
+  { name: "Disciplined", min: 1501,  max: 2200,  tier: "Advanced", tierIcon: "🟣", icon: "⚔️",  color: "#a855f7" },
+  { name: "Elite",       min: 2201,  max: 3000,  tier: "Advanced", tierIcon: "🟣", icon: "💎", color: "#a855f7" },
+  { name: "Master",      min: 3001,  max: 4000,  tier: "Advanced", tierIcon: "🟣", icon: "🧠", color: "#a855f7" },
+  // 🟡 Pro Tier
+  { name: "Legend",      min: 4001,  max: 5500,  tier: "Pro",      tierIcon: "🟡", icon: "🌟", color: "#eab308" },
+  { name: "Champion",    min: 5501,  max: 7500,  tier: "Pro",      tierIcon: "🟡", icon: "🥇", color: "#eab308" },
+  { name: "Titan",       min: 7501,  max: 10000, tier: "Pro",      tierIcon: "🟡", icon: "⚡", color: "#eab308" },
+  // 🔥 Ultimate Tier
+  { name: "Mythic",      min: 10001, max: Infinity, tier: "Ultimate", tierIcon: "🔥", icon: "🔥", color: "#ef4444" },
+];
+
+export const getRankInfo = (totalPoints: number): RankInfo =>
+  RANKS.find((r) => totalPoints >= r.min && totalPoints <= r.max) ?? RANKS[0];
+
+export const computeTotalPoints = (): number => {
+  const { startedDays } = useStore.getState();
+  return startedDays.reduce((sum, date) => sum + Math.max(0, computeDayScore(date).total), 0);
+};
+
+export const useTotalPoints = (): number => {
+  useStore((s) => s.blocks);
+  useStore((s) => s.namaz);
+  useStore((s) => s.settings);
+  useStore((s) => s.categories);
+  useStore((s) => s.startedDays);
+  return computeTotalPoints();
 };
 
 export { PRAYERS };
