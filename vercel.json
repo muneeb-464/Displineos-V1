@@ -1,9 +1,12 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
   "routes": [
     { "src": "/auth/(.*)",  "dest": "/api/index.cjs" },
     { "src": "/api/(.*)",   "dest": "/api/index.cjs" },
     { "src": "/health",     "dest": "/api/index.cjs" },
-    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "handle": "filesystem" },
     { "src": "/(.*)",       "dest": "/index.html" }
   ]
 }
