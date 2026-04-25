@@ -68,7 +68,7 @@ function ProfileSection() {
 
   // Auto-sync display name from Google account
   useEffect(() => {
-    if (isLoggedIn && user && settings.userName === "Operator") {
+    if (isLoggedIn && user && user.name && settings.userName === "Operator") {
       updateSettings({ userName: user.name });
     }
   }, [isLoggedIn, user]);
@@ -96,7 +96,7 @@ function ProfileSection() {
             <img src={user.profilePicture} alt={user.name} referrerPolicy="no-referrer" className="h-14 w-14 rounded-full object-cover ring-2 ring-primary/30" />
           ) : (
             <div className="h-14 w-14 rounded-full bg-secondary grid place-items-center font-display text-xl font-bold">
-              {user.name.charAt(0).toUpperCase()}
+              {(user.name ?? "?").charAt(0).toUpperCase()}
             </div>
           )}
           <div className="flex-1 min-w-0">
@@ -142,7 +142,7 @@ function ProfileSection() {
             ) : (
               <div className="h-20 w-20 rounded-full bg-surface-3 grid place-items-center font-display text-2xl font-bold ring-4"
                 style={{ outlineColor: rankInfo.color, boxShadow: `0 0 0 4px ${rankInfo.color}44` }}>
-                {(isLoggedIn && user ? user.name : settings.userName).split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase()}
+                {((isLoggedIn && user ? (user.name ?? "") : (settings.userName ?? "")) || "?").split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase()}
               </div>
             )}
             {/* rank icon badge */}
