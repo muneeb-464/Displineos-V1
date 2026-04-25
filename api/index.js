@@ -21,14 +21,21 @@ app.use("/auth", authRoutes);
 app.use("/api", dataRoutes);
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
-let connected = false;
+let connectionPromise = null;
 async function connectMongo() {
-  if (connected || mongoose.connection.readyState === 1) return;
-  await mongoose.connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 10000,
-    socketTimeoutMS: 45000,
-  });
-  connected = true;
+  if (mongoose.connection.readyState === 1) return;
+  if (!connectionPromise) {
+    connectionPromise = mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      bufferTimeoutMS: 30000,
+      maxPoolSize: 10,
+    }).catch((err) => {
+      connectionPromise = null;
+      throw err;
+    });
+  }
+  await connectionPromise;
 }
 
 module.exports = async (req, res) => {
