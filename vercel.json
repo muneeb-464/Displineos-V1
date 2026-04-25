@@ -3,9 +3,9 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "routes": [
-    { "src": "/auth/(.*)",  "dest": "/api/index.cjs" },
-    { "src": "/api/(.*)",   "dest": "/api/index.cjs" },
-    { "src": "/health",     "dest": "/api/index.cjs" },
+    { "src": "/auth/(.*)",  "dest": "/api/index.js" },
+    { "src": "/api/(.*)",   "dest": "/api/index.js" },
+    { "src": "/health",     "dest": "/api/index.js" },
     { "handle": "filesystem" },
     { "src": "/(.*)",       "dest": "/index.html" }
   ]
