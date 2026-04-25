@@ -32,6 +32,11 @@ async function connectMongo() {
 }
 
 module.exports = async (req, res) => {
-  await connectMongo();
+  try {
+    await connectMongo();
+  } catch (err) {
+    console.error("MongoDB connection failed:", err.message);
+    return res.status(500).json({ error: "DB connection failed", detail: err.message });
+  }
   return app(req, res);
 };
