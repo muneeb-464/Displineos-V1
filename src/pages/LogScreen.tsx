@@ -32,6 +32,7 @@ export default function LogScreen() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<TimeBlock | null>(null);
   const [initStart, setInitStart] = useState(9 * 60);
+  const [initEnd, setInitEnd] = useState<number | undefined>(undefined);
   const [presetSub, setPresetSub] = useState<string | null>(null);
 
   const [time, setTime] = useState(new Date());
@@ -139,17 +140,19 @@ export default function LogScreen() {
           blocks={logged}
           ghostBlocks={planned}
           isToday={isToday}
-          onSlotClick={(min) => { setEditing(null); setPresetSub(null); setInitStart(min); setPanelOpen(true); }}
-          onBlockClick={(b) => { setEditing(b); setPanelOpen(true); }}
+          onSlotClick={(min) => { setEditing(null); setPresetSub(null); setInitStart(min); setInitEnd(undefined); setPanelOpen(true); }}
+          onBlockClick={(b) => { setEditing(b); setInitEnd(undefined); setPanelOpen(true); }}
+          onGhostBlockClick={(b) => { setEditing(null); setPresetSub(b.subCategoryId); setInitStart(b.startMin); setInitEnd(b.endMin); setPanelOpen(true); }}
         />
       </div>
 
       <BlockCreationPanel
         open={panelOpen}
-        onOpenChange={(o) => { setPanelOpen(o); if (!o) setPresetSub(null); }}
+        onOpenChange={(o) => { setPanelOpen(o); if (!o) { setPresetSub(null); setInitEnd(undefined); } }}
         date={date}
         kind="logged"
         initialStartMin={initStart}
+        initialEndMin={initEnd}
         editing={editing}
         presetSubCategoryId={presetSub}
       />

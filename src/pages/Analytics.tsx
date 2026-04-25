@@ -12,13 +12,11 @@ import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveCo
 
 type Tab = "daily" | "range" | "monthly";
 
-const PIE_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--secondary))",
-  "hsl(var(--destructive))",
-  "hsl(var(--accent-foreground) / 0.72)",
-  "hsl(var(--muted-foreground) / 0.68)",
-];
+const TYPE_COLOR: Record<string, string> = {
+  productive: "hsl(var(--cat-productive))",
+  routine:    "hsl(var(--cat-routine))",
+  wasted:     "hsl(var(--cat-wasted))",
+};
 
 export default function Analytics() {
   const [tab, setTab] = useState<Tab>("range");
@@ -112,6 +110,18 @@ function RangeView({
   const report = useMemo(() => buildAggregateReport(dates), [dates, blocks, namaz, categories, startedDays]);
   const maxScore = Math.max(...report.dayScores.map((day) => day.total), 1);
   const totalBreakdownHours = report.breakdown.reduce((sum, item) => sum + item.hours, 0) || 1;
+
+  // Group breakdown into 3 type buckets for the pie chart
+  const typeBreakdown = useMemo(() => {
+    const map: Record<string, { name: string; hours: number; type: string }> = {
+      productive: { name: "Productive", hours: 0, type: "productive" },
+      routine:    { name: "Routine",    hours: 0, type: "routine" },
+      wasted:     { name: "Wasted",     hours: 0, type: "wasted" },
+    };
+    report.breakdown.forEach((item) => { if (map[item.type]) map[item.type].hours += item.hours; });
+    return Object.values(map).filter((t) => t.hours > 0);
+  }, [report.breakdown]);
+
   const barData = report.dayScores.map((day) => ({
     day: format(parseISODateLocal(day.date), dates.length > 15 ? "d MMM" : "EEE"),
     Productive: +day.productiveHours.toFixed(1),
@@ -215,8 +225,8 @@ function RangeView({
               <div className="h-56">
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={report.breakdown} dataKey="hours" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
-                      {report.breakdown.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+                    <Pie data={typeBreakdown} dataKey="hours" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                      {typeBreakdown.map((item, index) => <Cell key={index} fill={TYPE_COLOR[item.type] ?? "hsl(var(--muted-foreground))"} />)}
                     </Pie>
                     <Tooltip
                       contentStyle={{
@@ -231,10 +241,10 @@ function RangeView({
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {report.breakdown.map((item, index) => (
-                  <div key={item.id} className="flex items-center gap-3 rounded-lg bg-surface-2 px-3 py-2">
-                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: PIE_COLORS[index % PIE_COLORS.length] }} />
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {typeBreakdown.map((item) => (
+                  <div key={item.type} className="flex items-center gap-3 rounded-lg bg-surface-2 px-3 py-2">
+                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: TYPE_COLOR[item.type] }} />
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</span>
                     <span className="shrink-0 font-mono text-xs text-muted-foreground">{item.hours.toFixed(1)}h</span>
                     <span className="shrink-0 font-mono text-xs text-primary">
@@ -293,37 +303,118 @@ function RangeView({
 }
 
 function MonthlyView() {
-  const ref = new Date();
-  const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(ref), { weekStartsOn: 1 }), end: endOfMonth(ref) });
+  const [ref, setRef] = useState(new Date());
+  const monthStart = startOfMonth(ref);
+  const monthEnd = endOfMonth(ref);
+  const days = eachDayOfInterval({ start: startOfWeek(monthStart, { weekStartsOn: 1 }), end: monthEnd });
+
   const startedDays = useStore((s) => s.startedDays);
   useStore((s) => s.blocks);
   useStore((s) => s.namaz);
+  useStore((s) => s.categories);
+  useStore((s) => s.settings);
+
+  const monthDates = eachDayOfInterval({ start: monthStart, end: monthEnd })
+    .map((d) => format(d, "yyyy-MM-dd"));
+
+  const monthScores = useMemo(() =>
+    monthDates.map((iso) => ({ iso, score: computeDayScore(iso) })),
+    [ref, startedDays]  // eslint-disable-line
+  );
+
+  const started = monthScores.filter((d) => d.score.isStarted);
+  const totalScore = started.reduce((s, d) => s + d.score.total, 0);
+  const avgScore = started.length ? Math.round(totalScore / started.length) : 0;
+  const totalProductive = started.reduce((s, d) => s + d.score.productiveHours, 0);
+  const bestDay = started.reduce<{ iso: string; total: number } | null>((b, d) =>
+    !b || d.score.total > b.total ? { iso: d.iso, total: d.score.total } : b, null);
+  const maxScore = Math.max(...started.map((d) => d.score.total), 1);
+
+  const goToPrev = () => setRef((r) => { const d = new Date(r); d.setMonth(d.getMonth() - 1); return d; });
+  const goToNext = () => setRef((r) => { const d = new Date(r); d.setMonth(d.getMonth() + 1); return d; });
+  const isCurrentMonth = format(ref, "yyyy-MM") === format(new Date(), "yyyy-MM");
+
+  const getDayColor = (score: ReturnType<typeof computeDayScore>) => {
+    if (!score.isStarted) return "hsl(var(--muted) / 0.3)";
+    const total = score.productiveHours + score.routineHours + score.wastedHours || 1;
+    const productivePct = score.productiveHours / total;
+    const wastedPct = score.wastedHours / total;
+    if (wastedPct > 0.4) return `hsl(var(--cat-wasted) / ${0.25 + wastedPct * 0.5})`;
+    const intensity = Math.max(0.15, Math.min(0.85, score.total / maxScore));
+    return `hsl(var(--cat-productive) / ${intensity})`;
+  };
 
   return (
-    <div className="surface-card p-4 sm:p-6">
-      <h3 className="mb-4 font-display text-xl font-bold">{format(ref, "MMMM yyyy")}</h3>
-      <div className="mb-2 grid grid-cols-7 gap-2 text-xs text-muted-foreground">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => <div key={day} className="text-center">{day}</div>)}
+    <div className="space-y-4">
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MiniStat label="Month score" value={totalScore.toLocaleString()} tone="primary" />
+        <MiniStat label="Avg / day" value={avgScore ? `${avgScore} pts` : "—"} />
+        <MiniStat label="Productive hrs" value={`${totalProductive.toFixed(1)}h`} />
+        <MiniStat label="Active days" value={`${started.length} / ${monthDates.length}`} />
       </div>
-      <div className="grid grid-cols-7 gap-2">
-        {days.map((day) => {
-          const iso = format(day, "yyyy-MM-dd");
-          const started = startedDays.includes(iso);
-          const score = started ? computeDayScore(iso) : null;
-          const intensity = score && score.total > 0 ? Math.min(1, score.total / 1500) : 0;
-          return (
-            <div
-              key={iso}
-              className={cn("aspect-square rounded-lg border border-border p-2", !isSameMonth(day, ref) && "opacity-30", isToday(day) && "ring-2 ring-primary")}
-              style={{ background: !started ? "hsl(var(--muted) / 0.3)" : intensity ? `hsl(var(--primary) / ${intensity * 0.6})` : "hsl(var(--surface-2))" }}
-            >
-              <div className="flex h-full flex-col justify-between">
-                <span className="text-xs text-muted-foreground">{format(day, "d")}</span>
-                {started && score && score.total > 0 && <span className="text-xs font-mono font-bold">{score.total}</span>}
+
+      <div className="surface-card p-4 sm:p-6">
+        {/* Header with navigation */}
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={goToPrev} className="p-2 rounded-lg hover:bg-surface-2 transition text-muted-foreground hover:text-foreground">‹</button>
+          <div className="text-center">
+            <h3 className="font-display text-xl font-bold">{format(ref, "MMMM yyyy")}</h3>
+            {bestDay && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Best day: {format(parseISODateLocal(bestDay.iso), "d MMM")} · {bestDay.total} pts
+              </p>
+            )}
+          </div>
+          <button onClick={goToNext} disabled={isCurrentMonth} className="p-2 rounded-lg hover:bg-surface-2 transition text-muted-foreground hover:text-foreground disabled:opacity-30">›</button>
+        </div>
+
+        {/* Color legend */}
+        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: "hsl(var(--cat-productive))" }} />Productive</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: "hsl(var(--cat-wasted))" }} />Wasted heavy</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-muted/30" />Not started</span>
+        </div>
+
+        {/* Day headers */}
+        <div className="mb-2 grid grid-cols-7 gap-2 text-xs text-muted-foreground">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+            <div key={d} className="text-center">{d}</div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-2">
+          {days.map((day) => {
+            const iso = format(day, "yyyy-MM-dd");
+            const inMonth = isSameMonth(day, ref);
+            const score = computeDayScore(iso);
+            return (
+              <div
+                key={iso}
+                className={cn(
+                  "aspect-square rounded-lg border border-border relative overflow-hidden",
+                  !inMonth && "opacity-20",
+                  isToday(day) && "ring-2 ring-primary"
+                )}
+                style={{ background: inMonth ? getDayColor(score) : "transparent" }}
+              >
+                {/* Day number — top left */}
+                <span className="absolute top-1.5 left-2 text-[10px] text-foreground/50 leading-none font-medium">{format(day, "d")}</span>
+
+                {/* Score — centered, large */}
+                {score.isStarted && score.total > 0 ? (
+                  <span className="absolute inset-0 flex items-center justify-center font-display font-black text-foreground/90 leading-none"
+                    style={{ fontSize: "clamp(14px, 2.2vw, 28px)" }}>
+                    {score.total}
+                  </span>
+                ) : score.isStarted ? (
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] text-foreground/30">—</span>
+                ) : null}
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

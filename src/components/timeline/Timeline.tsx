@@ -15,6 +15,7 @@ interface Props {
   onSlotClick: (startMin: number) => void;
   onBlockClick: (block: TimeBlock) => void;
   ghostBlocks?: TimeBlock[];
+  onGhostBlockClick?: (block: TimeBlock) => void;
   isToday?: boolean;
 }
 
@@ -46,7 +47,7 @@ function computeLayout(blocks: TimeBlock[]): BlockLayout[] {
   });
 }
 
-export default function Timeline({ blocks, onSlotClick, onBlockClick, ghostBlocks = [], isToday }: Props) {
+export default function Timeline({ blocks, onSlotClick, onBlockClick, ghostBlocks = [], onGhostBlockClick, isToday }: Props) {
   const categories = useStore((s) => s.categories);
   const [now, setNow] = useState(nowMinutes());
 
@@ -77,15 +78,25 @@ export default function Timeline({ blocks, onSlotClick, onBlockClick, ghostBlock
       : cat.type === "routine"   ? "border-l-cat-routine bg-cat-routine/5"
       : "border-l-cat-wasted bg-cat-wasted/5";
 
+    const handleClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (ghost && onGhostBlockClick) onGhostBlockClick(b);
+      else if (!ghost) onBlockClick(b);
+    };
+
     return (
       <button
         key={b.id}
-        onClick={(e) => { e.stopPropagation(); onBlockClick(b); }}
+        onClick={handleClick}
         style={{ top, height, left: leftPct, width: widthPct }}
         className={cn(
           "absolute rounded-lg border border-border border-l-4 px-2 py-1.5 text-left transition z-10 overflow-hidden",
           accent,
-          ghost ? "opacity-30 pointer-events-none" : "hover:border-primary/40 bg-surface-1"
+          ghost
+            ? onGhostBlockClick
+              ? "opacity-40 hover:opacity-70 hover:border-primary/40 cursor-pointer"
+              : "opacity-30 pointer-events-none"
+            : "hover:border-primary/40 bg-surface-1"
         )}
       >
         <div className="flex items-center gap-1 min-w-0">

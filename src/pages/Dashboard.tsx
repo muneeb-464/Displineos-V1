@@ -2,7 +2,7 @@ import { useState } from "react";
 import ScoreRing from "@/components/ScoreRing";
 import StatCard from "@/components/StatCard";
 import NamazTracker from "@/components/NamazTracker";
-import { useDayScore, useStore } from "@/lib/store";
+import { useDayScore, useStore, useStreak } from "@/lib/store";
 import { formatDateLong, isoFromDate, parseISODateLocal, todayISO } from "@/lib/utils";
 import { Flame, Zap, Trash2, Moon, AlertTriangle, CalendarIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const isToday = date === today;
   const isMobile = useIsMobile();
   const score = useDayScore(date);
+  const streak = useStreak();
   const settings = useStore((s) => s.settings);
   const blocks = useStore((s) => s.blocks);
   const categories = useStore((s) => s.categories);
@@ -67,7 +68,7 @@ export default function Dashboard() {
                 )}
               </div>
               <div className="text-right">
-                <div className="chip chip-primary text-sm"><Flame className="h-4 w-4" /> {startedDays.length} days</div>
+                <div className="chip chip-primary text-sm"><Flame className="h-4 w-4" /> {streak} day{streak !== 1 ? "s" : ""}</div>
                 <p className="text-xs uppercase tracking-widest text-muted-foreground mt-2">Current streak</p>
               </div>
             </div>
