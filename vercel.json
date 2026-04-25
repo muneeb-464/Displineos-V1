@@ -1,8 +1,9 @@
 {
-  "rewrites": [
-    { "source": "/auth/:path*",  "destination": "/api/index.cjs" },
-    { "source": "/api/:path*",   "destination": "/api/index.cjs" },
-    { "source": "/health",       "destination": "/api/index.cjs" },
-    { "source": "/(.*)",         "destination": "/index.html" }
+  "routes": [
+    { "src": "/auth/(.*)",  "dest": "/api/index.cjs" },
+    { "src": "/api/(.*)",   "dest": "/api/index.cjs" },
+    { "src": "/health",     "dest": "/api/index.cjs" },
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/(.*)",       "dest": "/index.html" }
   ]
 }
