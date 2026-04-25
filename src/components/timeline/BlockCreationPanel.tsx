@@ -20,6 +20,7 @@ interface Props {
   date: string;
   kind: "planned" | "logged";
   initialStartMin?: number;
+  initialEndMin?: number;
   editing?: TimeBlock | null;
   presetSubCategoryId?: string | null;
 }
@@ -31,7 +32,7 @@ const TYPES: { v: CategoryType; label: string }[] = [
 ];
 
 export default function BlockCreationPanel({
-  open, onOpenChange, date, kind, initialStartMin = 9 * 60, editing, presetSubCategoryId,
+  open, onOpenChange, date, kind, initialStartMin = 9 * 60, initialEndMin, editing, presetSubCategoryId,
 }: Props) {
   const { categories, blocks: allBlocks, addBlock, updateBlock, deleteBlock, addCategory, pushRecentSub } = useStore();
   const [type, setType] = useState<CategoryType>("productive");
@@ -55,7 +56,7 @@ export default function BlockCreationPanel({
       setEnd(minutesToLabel(editing.endMin));
     } else {
       setStart(minutesToLabel(initialStartMin));
-      setEnd(minutesToLabel(initialStartMin + 60));
+      setEnd(minutesToLabel(initialEndMin ?? initialStartMin + 60));
       if (presetSubCategoryId) {
         const c = categories.find((x) => x.id === presetSubCategoryId);
         if (c) { setType(c.type); setSubId(c.id); }

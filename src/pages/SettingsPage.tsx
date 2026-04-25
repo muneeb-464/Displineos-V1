@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore, PRAYERS, useTotalPoints, getRankInfo, RANKS } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -301,16 +301,32 @@ function GoalsSection() {
   );
 }
 
+const TYPE_ORDER: Record<CategoryType, number> = { productive: 0, routine: 1, wasted: 2 };
+const TYPE_PTS: Record<CategoryType, number> = { productive: 5, routine: 0, wasted: 5 };
+const TYPE_COLOR_MAP: Record<CategoryType, string> = {
+  productive: "hsl(var(--cat-productive))",
+  routine: "hsl(var(--cat-routine))",
+  wasted: "hsl(var(--destructive))",
+};
+
 function CategoriesSection() {
-  const { categories, addCategory, updateCategory, deleteCategory } = useStore();
+  const { categories, addCategory, deleteCategory } = useStore();
   const [name, setName] = useState("");
   const [type, setType] = useState<CategoryType>("productive");
-  const [pts, setPts] = useState(10);
+
+  const sorted = useMemo(
+    () => [...categories].sort((a, b) =>
+      TYPE_ORDER[a.type] !== TYPE_ORDER[b.type]
+        ? TYPE_ORDER[a.type] - TYPE_ORDER[b.type]
+        : a.name.localeCompare(b.name)
+    ),
+    [categories]
+  );
 
   const add = () => {
     if (!name.trim()) return;
-    addCategory({ name: name.trim(), type, pointsPerHour: pts });
-    setName(""); setPts(10);
+    addCategory({ name: name.trim(), type, pointsPerHour: TYPE_PTS[type] });
+    setName("");
     toast.success("Category added.");
   };
 
@@ -318,17 +334,15 @@ function CategoriesSection() {
     <div>
       <h2 className="font-display text-3xl font-bold mb-6">Categories Manager</h2>
       <div className="space-y-2 mb-6">
-        {categories.map((c) => (
-          <div key={c.id} className="surface-card p-4 flex items-center gap-4 border-l-4" style={{ borderLeftColor: c.type === "productive" ? "hsl(var(--primary))" : c.type === "routine" ? "hsl(var(--secondary))" : "hsl(var(--destructive))" }}>
+        {sorted.map((c) => (
+          <div key={c.id} className="surface-card p-4 flex items-center gap-4 border-l-4" style={{ borderLeftColor: TYPE_COLOR_MAP[c.type] }}>
             <div className="flex-1">
               <p className="font-semibold">{c.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{c.type} · {c.pointsPerHour} pts/hr {c.isDeepWork && "· deep work"}</p>
+              <p className="text-xs text-muted-foreground capitalize">
+                {c.type} · {c.type === "productive" ? "+5" : c.type === "wasted" ? "−5" : "0"} pts/hr
+                {c.isDeepWork && " · deep work"}
+              </p>
             </div>
-            <Input
-              type="number" value={c.pointsPerHour}
-              onChange={(e) => updateCategory(c.id, { pointsPerHour: +e.target.value })}
-              className="w-20 bg-surface-2 border-border"
-            />
             <button onClick={() => deleteCategory(c.id)} className="text-destructive p-2 hover:bg-destructive/10 rounded-md">
               <Trash2 className="h-4 w-4" />
             </button>
@@ -338,15 +352,14 @@ function CategoriesSection() {
 
       <div className="surface-card p-5">
         <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Add category</p>
-        <div className="grid grid-cols-2 sm:grid-cols-[1fr_140px_100px_auto] gap-2">
-          <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-2 sm:col-span-1 bg-surface-2 border-border" />
+        <div className="grid grid-cols-[1fr_140px_auto] gap-2">
+          <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} className="bg-surface-2 border-border" onKeyDown={(e) => e.key === "Enter" && add()} />
           <select value={type} onChange={(e) => setType(e.target.value as CategoryType)} className="bg-surface-2 border border-border rounded-md px-3 text-sm">
             <option value="productive">Productive</option>
             <option value="routine">Routine</option>
             <option value="wasted">Wasted</option>
           </select>
-          <Input type="number" value={pts} onChange={(e) => setPts(+e.target.value)} className="bg-surface-2 border-border" />
-          <Button onClick={add} className="bg-primary text-primary-foreground col-span-2 sm:col-span-1"><Plus className="h-4 w-4" /></Button>
+          <Button onClick={add} className="bg-primary text-primary-foreground"><Plus className="h-4 w-4" /></Button>
         </div>
       </div>
     </div>

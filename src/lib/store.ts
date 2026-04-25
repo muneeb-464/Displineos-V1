@@ -52,7 +52,7 @@ interface AppState {
 }
 
 const defaultSettings: Settings = {
-  productiveRate: 10,
+  productiveRate: 5,
   wastedRate: 5,
   namazBonus: 5,
   namazPenalty: 5,
@@ -67,9 +67,9 @@ const defaultSettings: Settings = {
 };
 
 const seedCategories: SubCategory[] = [
-  { id: "c-deepwork", name: "Deep Work", type: "productive", pointsPerHour: 10, isDeepWork: true },
-  { id: "c-learning", name: "Learning", type: "productive", pointsPerHour: 10 },
-  { id: "c-admin", name: "Admin", type: "productive", pointsPerHour: 10 },
+  { id: "c-deepwork", name: "Deep Work", type: "productive", pointsPerHour: 5, isDeepWork: true },
+  { id: "c-learning", name: "Learning", type: "productive", pointsPerHour: 5 },
+  { id: "c-admin", name: "Admin", type: "productive", pointsPerHour: 5 },
   { id: "c-workout", name: "Workout", type: "routine", pointsPerHour: 0 },
   { id: "c-meal", name: "Meal", type: "routine", pointsPerHour: 0 },
   { id: "c-social", name: "Social Media", type: "wasted", pointsPerHour: 5 },
@@ -368,6 +368,32 @@ export const useTotalPoints = (): number => {
   useStore((s) => s.startedDays);
   return computeTotalPoints();
 };
+
+export function computeStreak(): number {
+  const { startedDays, settings } = useStore.getState();
+  const today = todayISO();
+  if (!startedDays.includes(today)) return 0;
+
+  let streak = 1;
+  const d = new Date(today + "T00:00:00");
+  while (true) {
+    d.setDate(d.getDate() - 1);
+    const iso = d.toISOString().slice(0, 10);
+    if (!startedDays.includes(iso)) break;
+    const score = computeDayScore(iso);
+    if (score.productiveHours < settings.streakMinHours) break;
+    streak++;
+  }
+  return streak;
+}
+
+export function useStreak(): number {
+  useStore((s) => s.startedDays);
+  useStore((s) => s.blocks);
+  useStore((s) => s.settings);
+  useStore((s) => s.categories);
+  return computeStreak();
+}
 
 export { PRAYERS };
 export type { CategoryType };
