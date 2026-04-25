@@ -8,7 +8,7 @@ import {
 import { getMissedPrayers } from "./namaz";
 import { todayISO, uid } from "./utils";
 
-const SERVER = import.meta.env.VITE_API_URL as string;
+const SERVER = (import.meta.env.VITE_API_URL as string) || "";
 
 interface AppState {
   categories: SubCategory[];

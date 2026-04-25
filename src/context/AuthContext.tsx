@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import axios from "axios";
 import { useStore } from "@/lib/store";
 
-const API = import.meta.env.VITE_API_URL as string;
+const API = (import.meta.env.VITE_API_URL as string) || "";
 
 interface User {
   id: string;
