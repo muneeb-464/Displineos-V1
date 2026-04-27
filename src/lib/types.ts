@@ -59,6 +59,8 @@ export interface Settings {
   userName: string;
   showNamazInLog: boolean;
   namazInScore: boolean;
+  timezone: string;
+  timeFormat: "12h" | "24h";
 }
 
 export interface DayPlanState {

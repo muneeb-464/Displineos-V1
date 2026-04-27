@@ -135,12 +135,12 @@ function RangeView({
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <h2 className="font-display text-2xl font-bold">Flexible progress range</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Choose 2, 4, 7, 15, 30, or a fully custom day range.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Choose a preset or set a fully custom date range below.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {RANGE_PRESETS.map((days) => (
               <Button key={days} type="button" variant={preset === days ? "default" : "outline"} onClick={() => onPresetChange(days)} className="border-border bg-surface-2 hover:bg-surface-3">
-                {days} days
+                {days >= 60 ? `${days / 30}mo` : `${days}d`}
               </Button>
             ))}
           </div>
@@ -403,10 +403,12 @@ function MonthlyView() {
                 <span className="absolute top-1.5 left-2 text-[10px] text-foreground/50 leading-none font-medium">{format(day, "d")}</span>
 
                 {/* Score — centered, large */}
-                {score.isStarted && score.total > 0 ? (
-                  <span className="absolute inset-0 flex items-center justify-center font-display font-black text-foreground/90 leading-none"
-                    style={{ fontSize: "clamp(14px, 2.2vw, 28px)" }}>
-                    {score.total}
+                {score.isStarted && score.total !== 0 ? (
+                  <span
+                    className={cn("absolute inset-0 flex items-center justify-center font-display font-black leading-none", score.total < 0 ? "text-red-300" : "text-foreground/90")}
+                    style={{ fontSize: "clamp(14px, 2.2vw, 28px)" }}
+                  >
+                    {score.total < 0 ? score.total : score.total}
                   </span>
                 ) : score.isStarted ? (
                   <span className="absolute inset-0 flex items-center justify-center text-[10px] text-foreground/30">—</span>

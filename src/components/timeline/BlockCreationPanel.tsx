@@ -156,7 +156,7 @@ export default function BlockCreationPanel({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="bg-surface-1 border-l-border w-[420px] sm:max-w-[420px]">
+        <SheetContent className="bg-surface-1 border-l-border w-full max-w-full sm:w-[420px] sm:max-w-[420px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="font-display text-2xl">
               {editing ? "Edit block" : kind === "planned" ? "Plan a block" : "Log time block"}

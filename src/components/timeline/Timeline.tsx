@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { TimeBlock } from "@/lib/types";
 import { useStore } from "@/lib/store";
-import { cn, minutesToLabel, nowMinutes } from "@/lib/utils";
+import { cn, formatMinutes, nowMinutes } from "@/lib/utils";
 import { Zap } from "lucide-react";
 
 const START_HOUR = 0;
@@ -47,14 +47,17 @@ function computeLayout(blocks: TimeBlock[]): BlockLayout[] {
   });
 }
 
+const MIN_BLOCK_PX = 32;
+
 export default function Timeline({ blocks, onSlotClick, onBlockClick, ghostBlocks = [], onGhostBlockClick, isToday }: Props) {
   const categories = useStore((s) => s.categories);
-  const [now, setNow] = useState(nowMinutes());
+  const settings = useStore((s) => s.settings);
+  const [now, setNow] = useState(() => nowMinutes(settings.timezone));
 
   useEffect(() => {
-    const t = setInterval(() => setNow(nowMinutes()), 30000);
+    const t = setInterval(() => setNow(nowMinutes(settings.timezone)), 30000);
     return () => clearInterval(t);
-  }, []);
+  }, [settings.timezone]);
 
   const containerHeight = (END_HOUR - START_HOUR + 1) * HOUR_PX;
   const minToPx = (m: number) => ((m - START_HOUR * 60) / 60) * HOUR_PX;
@@ -68,7 +71,8 @@ export default function Timeline({ blocks, onSlotClick, onBlockClick, ghostBlock
     if (!cat) return null;
 
     const top = minToPx(b.startMin);
-    const height = ((b.endMin - b.startMin) / 60) * HOUR_PX;
+    const rawH = ((b.endMin - b.startMin) / 60) * HOUR_PX;
+    const height = Math.max(MIN_BLOCK_PX, rawH);
     const GAP = 2;
     const leftPct = `calc(${GUTTER}px + ${col} / ${totalCols} * (100% - ${GUTTER}px) + ${GAP}px)`;
     const widthPct = `calc((100% - ${GUTTER}px) / ${totalCols} - ${GAP * 2}px)`;
@@ -90,7 +94,7 @@ export default function Timeline({ blocks, onSlotClick, onBlockClick, ghostBlock
         onClick={handleClick}
         style={{ top, height, left: leftPct, width: widthPct }}
         className={cn(
-          "absolute rounded-lg border border-border border-l-4 px-2 py-1.5 text-left transition z-10 overflow-hidden",
+          "absolute rounded-lg border border-border border-l-4 px-2 py-1.5 text-left transition z-10 overflow-hidden flex flex-col justify-start",
           accent,
           ghost
             ? onGhostBlockClick
@@ -99,22 +103,35 @@ export default function Timeline({ blocks, onSlotClick, onBlockClick, ghostBlock
             : "hover:border-primary/40 bg-surface-1"
         )}
       >
-        <div className="flex items-center gap-1 min-w-0">
-          {cat.isDeepWork && <Zap className="h-3 w-3 shrink-0 text-primary" />}
-          <span className="font-semibold text-xs truncate">{cat.name}</span>
-          {totalCols === 1 && (
-            <span className={cn(
-              "ml-auto shrink-0 chip text-[9px] uppercase tracking-wider",
-              cat.type === "productive" && "chip-primary",
-              cat.type === "wasted" && "bg-cat-wasted/20 text-cat-wasted",
-            )}>{cat.type}</span>
-          )}
-        </div>
-        {height >= 40 && (
-          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-            {minutesToLabel(b.startMin)} – {minutesToLabel(b.endMin)}
-          </p>
-        )}
+        {(() => {
+          const mins = b.endMin - b.startMin;
+          const dh = Math.floor(mins / 60);
+          const dm = mins % 60;
+          const dur = `${dh > 0 ? `${dh}h` : ""}${dm > 0 ? ` ${dm}m` : ""}`.trim();
+          return (
+            <div className="flex items-center gap-1.5 min-w-0">
+              {cat.isDeepWork && <Zap className="h-3 w-3 shrink-0 text-primary" />}
+              <span className="font-semibold text-md shrink-0">{cat.name}</span>
+              {rawH >= 36 && (
+                <>
+                  <span className="text-muted-foreground/30 text-[10px] shrink-0">|</span>
+                  <span className="text-[10px] text-muted-foreground truncate">
+                    {formatMinutes(b.startMin, settings.timeFormat)} – {formatMinutes(b.endMin, settings.timeFormat)}
+                    <span className="mx-1 opacity-40">·</span>
+                    {dur}
+                  </span>
+                </>
+              )}
+              {totalCols === 1 && (
+                <span className={cn(
+                  "ml-auto shrink-0 chip text-[9px] uppercase tracking-wider",
+                  cat.type === "productive" && "chip-primary",
+                  cat.type === "wasted" && "bg-cat-wasted/20 text-cat-wasted",
+                )}>{cat.type}</span>
+              )}
+            </div>
+          );
+        })()}
       </button>
     );
   };
@@ -130,7 +147,7 @@ export default function Timeline({ blocks, onSlotClick, onBlockClick, ghostBlock
           style={{ top: minToPx(h * 60), height: HOUR_PX }}
         >
           <span className="absolute left-1 top-1 text-[10px] text-muted-foreground/60 font-mono leading-none z-0">
-            {String(h).padStart(2, "0")}:00
+            {formatMinutes(h * 60, settings.timeFormat)}
           </span>
         </div>
       ))}

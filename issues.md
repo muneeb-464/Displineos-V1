@@ -1,105 +1,111 @@
-# App Issues & Feature Requests
+# New App Issues & Bug Reports
 
 ---
 
-## Issue 1 — Point Scoring Logic (Productive vs Wasted Hours)
+## 1. Dashboard — Score Ring (Goal-Based Fill)
 
 **Problem:**
-The point system does not correctly calculate scores based on duration. If a user sets 2 points for 1 hour of productive work, the score should be calculated proportionally per minute (i.e., per-minute score = points ÷ 60). For example, if a productive block is only 0.5 hours (30 minutes), the score added should be 1 point (not the full 2). The per-minute rate should be: `2 ÷ 60 = 0.0333 points/minute`, so a 30-minute block = `0.0333 × 30 = 1 point`.
+When a user sets their daily hours goal in Settings, the dashboard score ring does not reflect the goal progress correctly. The ring has no visual breakdown of how hours are split between Productive, Wasted, or Routine time.
 
-**Expected Behavior:**
-- Score must be calculated proportionally based on actual duration of the block.
-- Formula: `score = (pointsPerHour / 60) × durationInMinutes`
-- This applies to both **productive** and **wasted** hour point settings.
+**Requirement:**
+
+* Score ring should only activate/fill once the user has set a daily hours goal in Settings
+* If no goal is set → prompt user to set one before the ring renders
+* Ring fill must be segmented and color-coded by time type:
+  * Productive (P) → Yellow (dark)
+  * Wasted (W) → Red
+  * Routine (R) → Gray
+* Fill percentage formula:
+  * `(Total logged hours / Daily goal hours) × 100`
+* Each segment fills proportionally based on how many hours belong to P, W, or R
 
 ---
 
-## Issue 2 — Overlapping Blocks in Planner/Log Page
+## 2. Dashboard — Last Streak & Current Streak Display
 
 **Problem:**
-When adding blocks to the planner/log page, blocks are overlapping each other visually even when they represent different time slots. For example, if a 1-hour slot exists and the user adds a 30-minute block, then a 45-minute block starting before the first one ends, the blocks visually overlap instead of stacking or being rejected/adjusted.
+The dashboard currently does not show both the user's **last streak** and **current streak** together. Users have no way to compare where they were vs where they are now.
 
-**Expected Behavior:**
-- Blocks must be fully responsive and rendered in a synchronized, non-overlapping layout.
-- If a block overlaps with an existing block, either:
-  - Prevent the overlap and show a warning, **or**
-  - Render overlapping blocks side-by-side within the time slot.
-- The planner must visually display all blocks accurately within their correct time boundaries.
+**Requirement:**
+
+* Dashboard must display **two streak values** clearly:
+  * **Current Streak** → number of consecutive days the user has met their daily goal (ongoing)
+  * **Last Streak** → the most recently completed/broken streak count before the current one
+* Both should be visible on the dashboard at the same time — not toggled or hidden
+* Example display:
+  ```
+  🔥 Current Streak: 5 days
+  ⏪ Last Streak:    12 days
+  ```
+* If the user has no previous streak → Last Streak shows `0` or `—`
+* If current streak is broken → it moves to Last Streak and current resets to `0`
 
 ---
 
-## Issue 3 — Analytics Page: Daily Hours Chart Missing "Routine" Bar
+## 3. Time Format Inconsistency, Timezone Bug & Short Block Height ⚠️ (Critical)
+
+**Problem A — Format Mismatch:**
+When adding a time block, the time input shows in **12-hour format (AM/PM)**, but on the **Log page** and **Planner page**, time is displayed in **24-hour format**. This inconsistency causes confusion across the app.
+
+**Problem B — Timezone Not Handled:**
+The app does not account for the user's local timezone when saving or displaying time blocks, resulting in incorrect times being stored and shown.
+
+**Problem C — Short Block Tile Height (Log & Planner Page):**
+On the Log and Planner pages, time block tiles do not scale properly based on duration. A short block (e.g., 15 minutes) renders with too little height, making it unreadable and visually unclear.
+
+**Requirement:**
+
+* Add a **Timezone Selection** option in Settings
+  * Example: dropdown with PKT, UTC, EST, IST, GMT, etc.
+* All time values across the app must respect the selected timezone:
+  * Block creation screen
+  * Log page
+  * Planner page
+* Pick **one** time format (12h or 24h) and apply it consistently across the entire app
+* Optional: Allow user to toggle 12h / 24h preference in Settings
+* Block tile height on Log and Planner pages must scale **proportionally** based on block duration
+* Even very short blocks (minimum **15 minutes**) must be clearly visible and readable
+* Minimum tile height must be enforced so Category name and time range are always fully legible — never clipped or overflowed
+* Example scaling reference:
+  * 15 min block → minimum visible height (e.g., 30–40px)
+  * 30 min block → proportionally taller
+  * 1 hour block → full standard height
+* Text inside short tiles should truncate gracefully (e.g., `...`) rather than overflow or disappear
+
+---
+
+
+
+
+
+
+## 7. Analytics Monthly Page — Wasted Day Rule (50% Goal)
 
 **Problem:**
-The daily hours bar chart on the Analytics page currently shows only two bars: **Productive** and **Wasted**. A third category — **Routine** — is missing from the chart.
+On the Analytics monthly view, there is no logic to classify a day as "wasted" when the user fails to meet a meaningful portion of their daily goal. This means even completely unproductive days look neutral, skewing the monthly overview.
 
-**Expected Behavior:**
-- Add a third bar **"Routine"** to the daily hours bar chart.
-- The chart should display three bars per day/entry: **Productive**, **Wasted**, and **Routine**.
-- Ensure the chart legend is updated to reflect all three categories with distinct colors.
+**Requirement:**
 
----
-
-## Issue 4 — Analytics Page: Time Breakdown Tooltip & Category UI
-
-**Problem:**
-Two sub-issues on the Analytics page time breakdown (pie chart):
-
-**4a — Tooltip Visibility:**
-- When hovering over a slice in the pie chart, the tooltip shows text (e.g., "Working on Project") in **black color on a dark/black background**, making it completely unreadable.
-
-**4b — Category Legend Layout:**
-- The category labels shown below the pie chart are not organized properly. They appear in an unstructured, unsynchronized way.
-
-**Expected Behavior:**
-- **4a:** Tooltip text must be visible — use a light/white text color or a light-colored tooltip background when in dark mode.
-- **4b:** Categories should be displayed in a clean **list format** (e.g., a structured grid or vertical list with color indicators, label, and percentage/time value).
+* If a user has set a **daily hours goal** in Settings:
+  * If the user completes **less than 50%** of their daily goal on any given day → that day is automatically classified as a **Wasted Day**
+  * If the user completes **50% or more** → day is considered valid (Productive or Routine based on block types)
+* This rule must be reflected in:
+  * Monthly analytics calendar view (day color / marker)
+  * Monthly summary stats (total wasted days count)
+  * Score calculation for that day
+* Wasted Day indicator color → **Red** (consistent with Wasted color system)
+* If no daily goal is set → this rule does not apply
 
 ---
 
-## Issue 5 — Theme Changer Button Hidden on Small Screens
+## Summary
 
-**Problem:**
-The theme toggle/changer button disappears or becomes hidden when the screen size is reduced (mobile/small screen view).
-
-**Expected Behavior:**
-- The theme changer button must remain **visible and accessible** on all screen sizes.
-- Ensure it is included in the mobile navigation or header layout and does not get hidden by overflow or display rules.
-
----
-
-## Issue 6 — Reflection Page: Responsiveness & Custom Date Selection
-
-**Problem:**
-Two sub-issues on the Reflection page:
-
-**6a — Not Fully Responsive:**
-- The Reflection page does not display correctly on smaller screens. Content may be cut off, overflow, or become unreadable.
-
-**6b — Missing Date Selection & Points Display:**
-- The page lacks a functional custom date selector.
-- When a specific date/period is selected, the **points earned** for that period should be displayed clearly on the page.
-
-**Expected Behavior:**
-- **6a:** Make the Reflection page fully responsive for all screen sizes. Content must be clearly readable on mobile.
-- **6b:** Add a date range/period selector to the Reflection page. Upon selection, display the relevant points/score for the chosen period.
-
----
-
-## Issue 7 — Settings Page: Point Changes Not Saved or Applied
-
-**Problem:**
-On the Settings page, when a user changes the point values (e.g., sets 5 points for a productive day or modifies daily goals), the changes appear to update visually on the Settings page but are **not persisted or applied** elsewhere in the app. When the user navigates to the Daily Planner or Log page and adds a block, it still uses the **old/previous point values**.
-
-**Expected Behavior:**
-- Add a **"Save"** button on the Settings page for point/goal configurations.
-- When the user clicks Save, the new settings must be:
-  - Persisted to storage (localStorage or database).
-  - Applied immediately across the entire app (Daily Planner, Log page, Analytics, etc.).
-- Until the user clicks Save, changes should remain in a "pending" state and not affect other pages.
-- After saving, a confirmation message should be shown (e.g., "Settings saved successfully").
-
----
-
-*Document created: April 24, 2026*
-*Total Issues: 7 (including sub-issues)*
+| # | Issue | Type | Priority |
+|---|-------|------|----------|
+| 1 | Score ring fills based on P / W / R after goal is set | Feature / Fix | High |
+| 2 | Dashboard must show both Last Streak and Current Streak | Feature | Medium |
+| 3 | Time format mismatch (12h vs 24h) + Timezone + Short block height | Bug | Critical |
+| 4 | Time block must show Category, Time & Total Hours | Bug / UI | Medium |
+| 5 | Analytics — view all dates, customize last 7 days only | Limitation | Medium |
+| 6 | Add block form not responsive on small screens | Bug / UI | High |
+| 7 | Monthly analytics — day marked Wasted if < 50% goal met | Feature / Logic | High |

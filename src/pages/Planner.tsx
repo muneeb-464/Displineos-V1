@@ -4,8 +4,9 @@ import BlockCreationPanel from "@/components/timeline/BlockCreationPanel";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 import { TimeBlock } from "@/lib/types";
-import { formatDateLong, isoFromDate, parseISODateLocal, todayISO } from "@/lib/utils";
-import { Plus, FolderOpen, Play, Bell, CalendarIcon } from "lucide-react";
+import { formatDateLong, isoFromDate, isEditableDate, parseISODateLocal, todayISO } from "@/lib/utils";
+import { Plus, FolderOpen, Play, Bell, CalendarIcon, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -25,6 +26,8 @@ export default function Planner() {
   const namazReminders = Object.values(settings.prayerReminders).filter(Boolean).length;
   const showNamazInLog = settings.showNamazInLog;
   const isToday = date === today;
+  const isLocked = !isToday && !isEditableDate(date);
+  const lockToast = () => toast.info("You can only customize blocks from the last 7 days");
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<TimeBlock | null>(null);
@@ -63,14 +66,11 @@ export default function Planner() {
                   <Calendar
                     mode="single"
                     selected={parseISODateLocal(date)}
-                    onSelect={(d) => {
-                      if (d) {
-                        setDate(isoFromDate(d));
-                        setDateOpen(false);
-                      }
-                    }}
+                    onSelect={(d) => { if (d) { setDate(isoFromDate(d)); setDateOpen(false); } }}
+                    modifiers={{ locked: (d) => !isEditableDate(isoFromDate(d)) && isoFromDate(d) <= parseISODateLocal(today) }}
+                    modifiersClassNames={{ locked: "opacity-40" }}
                     initialFocus
-                    className={cn("p-3 pointer-events-auto")}
+                    className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -81,8 +81,9 @@ export default function Planner() {
                 <FolderOpen className="h-4 w-4 mr-2" /> Load Template
               </Button>
               <Button
-                onClick={() => { setEditing(null); setInitStart(9 * 60); setPanelOpen(true); }}
+                onClick={() => { if (isLocked) { lockToast(); return; } setEditing(null); setInitStart(9 * 60); setPanelOpen(true); }}
                 className="bg-primary text-primary-foreground hover:bg-primary-glow text-sm"
+                disabled={isLocked}
               >
                 <Plus className="h-4 w-4 mr-2" /> Add Block
               </Button>
@@ -101,12 +102,18 @@ export default function Planner() {
               </div>
             )}
 
+            {isLocked && (
+              <div className="surface-card p-4 mb-4 border-l-4 border-l-muted-foreground flex items-center gap-3">
+                <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="text-sm text-muted-foreground">This date is locked — you can only customize blocks from the last 7 days.</p>
+              </div>
+            )}
             <Timeline
               date={date}
               blocks={blocks}
               isToday={isToday}
-              onSlotClick={(min) => { setEditing(null); setInitStart(min); setPanelOpen(true); }}
-              onBlockClick={(b) => { setEditing(b); setPanelOpen(true); }}
+              onSlotClick={(min) => { if (isLocked) { lockToast(); return; } setEditing(null); setInitStart(min); setPanelOpen(true); }}
+              onBlockClick={(b) => { if (isLocked) { lockToast(); return; } setEditing(b); setPanelOpen(true); }}
             />
           </div>
         </div>
