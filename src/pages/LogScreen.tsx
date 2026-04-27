@@ -3,16 +3,18 @@ import Timeline from "@/components/timeline/Timeline";
 import BlockCreationPanel from "@/components/timeline/BlockCreationPanel";
 import { useDayScore, useStore } from "@/lib/store";
 import { TimeBlock } from "@/lib/types";
-import { formatDateLong, isoFromDate, parseISODateLocal, todayISO } from "@/lib/utils";
+import { formatDateLong, isoFromDate, isEditableDate, parseISODateLocal, todayISO } from "@/lib/utils";
 import NamazTracker from "@/components/NamazTracker";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function LogScreen() {
-  const today = todayISO();
+  const timezone = useStore((s) => s.settings.timezone);
+  const today = todayISO(timezone);
   const [date, setDate] = useState<string>(today);
   const [dateOpen, setDateOpen] = useState(false);
   const isToday = date === today;
@@ -25,9 +27,12 @@ export default function LogScreen() {
 
   const startedDays = useStore((s) => s.startedDays);
   const dayStarted = startedDays.includes(date);
+  const isLocked = !isToday && !isEditableDate(date);
 
   const planned = blocks.filter((b) => b.date === date && b.kind === "planned");
   const logged = blocks.filter((b) => b.date === date && b.kind === "logged");
+
+  const lockToast = () => toast.info("You can only customize blocks from the last 7 days");
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<TimeBlock | null>(null);
@@ -85,6 +90,8 @@ export default function LogScreen() {
                     if (d) { setDate(isoFromDate(d)); setDateOpen(false); }
                   }}
                   disabled={(d) => isoFromDate(d) > today}
+                  modifiers={{ locked: (d) => !isEditableDate(isoFromDate(d)) && isoFromDate(d) <= today }}
+                  modifiersClassNames={{ locked: "opacity-40" }}
                   initialFocus
                   className="p-3 pointer-events-auto"
                 />
@@ -97,12 +104,20 @@ export default function LogScreen() {
               <span className="text-xs uppercase tracking-widest text-muted-foreground mr-3">
                 {isToday ? "Today" : "Score"}
               </span>
-              <span className="font-display text-2xl font-bold text-primary">
-                {score.isStarted ? `+${score.total.toLocaleString()} pts` : "—"}
+              <span className={cn("font-display text-2xl font-bold", score.isStarted && score.total < 0 ? "text-destructive" : "text-primary")}>
+                {score.isStarted ? `${score.total >= 0 ? "+" : ""}${score.total.toLocaleString()} pts` : "—"}
               </span>
             </div>
           </div>
         </header>
+
+        {/* Lock banner */}
+        {isLocked && (
+          <div className="surface-card p-4 mb-4 border-l-4 border-l-muted-foreground flex items-center gap-3">
+            <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+            <p className="text-sm text-muted-foreground">This date is locked — you can only customize blocks from the last 7 days.</p>
+          </div>
+        )}
 
         {/* Quick chips — only show for today */}
         {isToday && (
@@ -140,9 +155,9 @@ export default function LogScreen() {
           blocks={logged}
           ghostBlocks={planned}
           isToday={isToday}
-          onSlotClick={(min) => { setEditing(null); setPresetSub(null); setInitStart(min); setInitEnd(undefined); setPanelOpen(true); }}
-          onBlockClick={(b) => { setEditing(b); setInitEnd(undefined); setPanelOpen(true); }}
-          onGhostBlockClick={(b) => { setEditing(null); setPresetSub(b.subCategoryId); setInitStart(b.startMin); setInitEnd(b.endMin); setPanelOpen(true); }}
+          onSlotClick={(min) => { if (isLocked) { lockToast(); return; } setEditing(null); setPresetSub(null); setInitStart(min); setInitEnd(undefined); setPanelOpen(true); }}
+          onBlockClick={(b) => { if (isLocked) { lockToast(); return; } setEditing(b); setInitEnd(undefined); setPanelOpen(true); }}
+          onGhostBlockClick={(b) => { if (isLocked) { lockToast(); return; } setEditing(null); setPresetSub(b.subCategoryId); setInitStart(b.startMin); setInitEnd(b.endMin); setPanelOpen(true); }}
         />
       </div>
 

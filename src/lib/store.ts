@@ -64,6 +64,8 @@ const defaultSettings: Settings = {
   userName: "Operator",
   showNamazInLog: true,
   namazInScore: true,
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  timeFormat: "24h",
 };
 
 const seedCategories: SubCategory[] = [
@@ -393,6 +395,64 @@ export function useStreak(): number {
   useStore((s) => s.settings);
   useStore((s) => s.categories);
   return computeStreak();
+}
+
+export function computeStreaks(): { current: number; last: number } {
+  const { startedDays, settings } = useStore.getState();
+  const today = todayISO();
+  const startedSet = new Set(startedDays);
+
+  function meetsGoal(date: string): boolean {
+    if (!startedSet.has(date)) return false;
+    return computeDayScore(date).productiveHours >= settings.streakMinHours;
+  }
+
+  function prevDay(iso: string): string {
+    const d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }
+
+  const yearLimit = new Date().getFullYear() - 2;
+
+  if (startedSet.has(today)) {
+    let current = 1;
+    let d = prevDay(today);
+    while (meetsGoal(d)) { current++; d = prevDay(d); }
+
+    let last = 0;
+    while (parseInt(d.slice(0, 4)) > yearLimit) {
+      if (meetsGoal(d)) {
+        last = 1;
+        d = prevDay(d);
+        while (meetsGoal(d)) { last++; d = prevDay(d); }
+        break;
+      }
+      d = prevDay(d);
+    }
+    return { current, last };
+  }
+
+  let last = 0;
+  let d = prevDay(today);
+  while (parseInt(d.slice(0, 4)) > yearLimit) {
+    if (meetsGoal(d)) {
+      last = 1;
+      d = prevDay(d);
+      while (meetsGoal(d)) { last++; d = prevDay(d); }
+      break;
+    }
+    d = prevDay(d);
+  }
+  return { current: 0, last };
+}
+
+export function useStreaks(): { current: number; last: number } {
+  useStore((s) => s.startedDays);
+  useStore((s) => s.blocks);
+  useStore((s) => s.settings);
+  useStore((s) => s.categories);
+  return computeStreaks();
 }
 
 export { PRAYERS };

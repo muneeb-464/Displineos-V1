@@ -2,9 +2,9 @@ import { useState } from "react";
 import ScoreRing from "@/components/ScoreRing";
 import StatCard from "@/components/StatCard";
 import NamazTracker from "@/components/NamazTracker";
-import { useDayScore, useStore, useStreak } from "@/lib/store";
+import { useDayScore, useStore, useStreaks } from "@/lib/store";
 import { formatDateLong, isoFromDate, parseISODateLocal, todayISO } from "@/lib/utils";
-import { Flame, Zap, Trash2, Moon, AlertTriangle, CalendarIcon } from "lucide-react";
+import { Flame, Zap, Trash2, Moon, AlertTriangle, CalendarIcon, History } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,14 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Dashboard() {
-  const today = todayISO();
+  const timezone = useStore((s) => s.settings.timezone);
+  const today = todayISO(timezone);
   const [date, setDate] = useState<string>(today);
   const [dateOpen, setDateOpen] = useState(false);
   const isToday = date === today;
   const isMobile = useIsMobile();
   const score = useDayScore(date);
-  const streak = useStreak();
+  const { current: streak, last: lastStreak } = useStreaks();
   const settings = useStore((s) => s.settings);
   const blocks = useStore((s) => s.blocks);
   const categories = useStore((s) => s.categories);
@@ -67,9 +68,15 @@ export default function Dashboard() {
                   <Button variant="ghost" onClick={() => setDate(today)} className="text-xs">Jump to Today</Button>
                 )}
               </div>
-              <div className="text-right">
-                <div className="chip chip-primary text-sm"><Flame className="h-4 w-4" /> {streak} day{streak !== 1 ? "s" : ""}</div>
-                <p className="text-xs uppercase tracking-widest text-muted-foreground mt-2">Current streak</p>
+              <div className="text-right space-y-2">
+                <div>
+                  <div className="chip chip-primary text-sm"><Flame className="h-4 w-4" /> {streak} day{streak !== 1 ? "s" : ""}</div>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1">Current streak</p>
+                </div>
+                <div>
+                  <div className="chip text-sm opacity-70"><History className="h-4 w-4" /> {lastStreak > 0 ? `${lastStreak} day${lastStreak !== 1 ? "s" : ""}` : "—"}</div>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1">Last streak</p>
+                </div>
               </div>
             </div>
           </div>
@@ -112,28 +119,27 @@ export default function Dashboard() {
           {/* Score Ring */}
           <div className="surface-card p-4 sm:p-6 lg:p-8">
             <div className="mb-4">
-              <h3 className="font-display text-2xl font-bold">The Score Ring</h3>
-              <p className="text-sm text-muted-foreground">{dayStarted ? "Aggregate kinetic performance" : "Neutral — day not started"}</p>
+              <h3 className="font-display text-2xl font-bold">Goal Progress</h3>
+              <p className="text-sm text-muted-foreground">
+                {!dayStarted ? "Neutral — day not started" : `Target: ${settings.targetProductiveHours}h productive`}
+              </p>
             </div>
-            {dayStarted ? (
-              <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-around mt-4">
-                <ScoreRing value={score.total} max={Math.max(2000, score.total + 200)} sublabel="points" size={isMobile ? 160 : 200} />
-                <div className="flex flex-row gap-6 sm:flex-col sm:gap-0 sm:space-y-4">
-                  <Legend color="hsl(var(--primary))" label="Productive" value={`${score.productive} pts`} />
-                  <Legend color="hsl(var(--secondary))" label="Routine" value={`${score.routine} pts`} />
-                  <Legend color="hsl(var(--destructive))" label="Wasted" value={`${score.wasted} pts`} />
-                </div>
+            <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-around mt-4">
+              <ScoreRing
+                segments={[
+                  { hours: dayStarted ? score.productiveHours : 0, color: "hsl(var(--cat-productive))", label: "Productive" },
+                  { hours: dayStarted ? score.routineHours : 0,    color: "hsl(var(--cat-routine))",    label: "Routine"    },
+                  { hours: dayStarted ? score.wastedHours : 0,     color: "hsl(var(--cat-wasted))",     label: "Wasted"     },
+                ]}
+                goalHours={settings.targetProductiveHours}
+                size={isMobile ? 160 : 200}
+              />
+              <div className="flex flex-row gap-6 sm:flex-col sm:gap-0 sm:space-y-4">
+                <Legend color="hsl(var(--cat-productive))" label="Productive" value={dayStarted ? `${score.productiveHours.toFixed(1)}h` : "—"} />
+                <Legend color="hsl(var(--cat-routine))"    label="Routine"    value={dayStarted ? `${score.routineHours.toFixed(1)}h`    : "—"} />
+                <Legend color="hsl(var(--cat-wasted))"     label="Wasted"     value={dayStarted ? `${score.wastedHours.toFixed(1)}h`     : "—"} />
               </div>
-            ) : (
-              <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-around mt-4">
-                <ScoreRing value={0} max={2000} sublabel="neutral" size={isMobile ? 160 : 200} />
-                <div className="flex flex-row gap-6 sm:flex-col sm:gap-0 sm:space-y-4">
-                  <Legend color="hsl(var(--muted-foreground))" label="Productive" value="— pts" />
-                  <Legend color="hsl(var(--muted-foreground))" label="Routine" value="— pts" />
-                  <Legend color="hsl(var(--muted-foreground))" label="Wasted" value="— pts" />
-                </div>
-              </div>
-            )}
+            </div>
           </div>
 
           {/* Where did your day go + planned vs actual */}

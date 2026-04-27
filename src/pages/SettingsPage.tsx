@@ -15,6 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 const SECTIONS = [
   { id: "profile", label: "Profile" },
   { id: "goals", label: "Daily Goals" },
+  { id: "display", label: "Display" },
   { id: "categories", label: "Categories" },
   { id: "points", label: "Points System" },
   { id: "templates", label: "Templates" },
@@ -50,6 +51,7 @@ export default function SettingsPage() {
         <div className="p-4 sm:p-6 lg:p-10 max-w-3xl min-w-0">
           {section === "profile" && <ProfileSection />}
           {section === "goals" && <GoalsSection />}
+          {section === "display" && <DisplaySection />}
           {section === "categories" && <CategoriesSection />}
           {section === "points" && <PointsSection />}
           {section === "templates" && <TemplatesSection />}
@@ -475,6 +477,82 @@ function StreakSection() {
           className="mt-2 bg-surface-2 border-border font-display text-2xl h-14"
         />
         <p className="text-sm text-muted-foreground mt-4">Current streak: <span className="text-primary font-semibold">{startedDays.length} days</span></p>
+      </div>
+    </div>
+  );
+}
+
+const TIMEZONE_OPTIONS = [
+  { label: "PKT — Pakistan (UTC+5)", value: "Asia/Karachi" },
+  { label: "IST — India (UTC+5:30)", value: "Asia/Kolkata" },
+  { label: "BST — Bangladesh (UTC+6)", value: "Asia/Dhaka" },
+  { label: "GST — Gulf / UAE (UTC+4)", value: "Asia/Dubai" },
+  { label: "UTC — Coordinated Universal Time", value: "UTC" },
+  { label: "GMT — UK / London", value: "Europe/London" },
+  { label: "CET — Central Europe (UTC+1)", value: "Europe/Paris" },
+  { label: "EAT — East Africa (UTC+3)", value: "Africa/Nairobi" },
+  { label: "SGT — Singapore (UTC+8)", value: "Asia/Singapore" },
+  { label: "EST — US Eastern (UTC−5)", value: "America/New_York" },
+  { label: "CST — US Central (UTC−6)", value: "America/Chicago" },
+  { label: "PST — US Pacific (UTC−8)", value: "America/Los_Angeles" },
+];
+
+function DisplaySection() {
+  const { settings, updateSettings } = useStore();
+
+  const deviceTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const nowStr = new Date().toLocaleTimeString("en-US", {
+    timeZone: settings.timezone || deviceTz,
+    hour: "2-digit", minute: "2-digit",
+    hour12: settings.timeFormat === "12h",
+  });
+
+  return (
+    <div>
+      <h2 className="font-display text-3xl font-bold mb-6">Display</h2>
+
+      {/* Time format */}
+      <div className="surface-card p-6 mb-5">
+        <h3 className="font-display text-xl font-bold mb-1">Time Format</h3>
+        <p className="text-sm text-muted-foreground mb-4">Controls how times appear in block tiles and the planner timeline.</p>
+        <div className="flex gap-3">
+          {(["24h", "12h"] as const).map((fmt) => (
+            <button
+              key={fmt}
+              onClick={() => updateSettings({ timeFormat: fmt })}
+              className={cn(
+                "px-5 py-2 rounded-lg border text-sm font-semibold transition",
+                settings.timeFormat === fmt
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-surface-2 text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {fmt === "24h" ? "24h  (14:30)" : "12h  (2:30 PM)"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Timezone */}
+      <div className="surface-card p-6">
+        <h3 className="font-display text-xl font-bold mb-1">Timezone</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Used to determine today's date and the "Now" indicator. Current time in selected zone: <span className="text-primary font-semibold">{nowStr}</span>
+        </p>
+        <select
+          value={settings.timezone || deviceTz}
+          onChange={(e) => updateSettings({ timezone: e.target.value })}
+          className="w-full bg-surface-2 border border-border rounded-md px-3 py-2.5 text-sm"
+        >
+          {TIMEZONE_OPTIONS.map((tz) => (
+            <option key={tz.value} value={tz.value}>{tz.label}</option>
+          ))}
+          {/* Show device tz if not in the list */}
+          {!TIMEZONE_OPTIONS.find((o) => o.value === deviceTz) && (
+            <option value={deviceTz}>Device: {deviceTz}</option>
+          )}
+        </select>
+        <p className="text-xs text-muted-foreground mt-3">Device timezone: <span className="font-mono">{deviceTz}</span></p>
       </div>
     </div>
   );
