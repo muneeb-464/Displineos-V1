@@ -35,7 +35,7 @@ export default function Dashboard() {
   const wastedPct = (score.wastedHours / totalHours) * 100;
 
   return (
-      <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10 max-w-[1400px]">
+      <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
         {/* Greeting card */}
         <div className="surface-card p-4 sm:p-6 lg:p-8 mb-6 border-l-4 border-l-primary">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

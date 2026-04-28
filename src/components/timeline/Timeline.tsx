@@ -8,6 +8,8 @@ const START_HOUR = 0;
 const END_HOUR = 23;
 const HOUR_PX = 72;
 const GUTTER = 64; // px reserved for hour labels on the left
+const MIN_BLOCK_PX = 32;
+const minToPx = (m: number) => ((m - START_HOUR * 60) / 60) * HOUR_PX;
 
 interface Props {
   date: string;
@@ -23,6 +25,8 @@ interface BlockLayout {
   block: TimeBlock;
   col: number;
   totalCols: number;
+  visualTop: number;
+  visualHeight: number;
 }
 
 function computeLayout(blocks: TimeBlock[]): BlockLayout[] {
@@ -38,16 +42,24 @@ function computeLayout(blocks: TimeBlock[]): BlockLayout[] {
     assigned.push({ block: b, col });
   }
 
+  const colVisualBottom: number[] = [];
+
   return assigned.map(({ block, col }) => {
     const overlapping = assigned.filter(
       ({ block: o }) => o.startMin < block.endMin && o.endMin > block.startMin
     );
     const totalCols = Math.max(...overlapping.map((a) => a.col)) + 1;
-    return { block, col, totalCols };
+
+    const rawH = ((block.endMin - block.startMin) / 60) * HOUR_PX;
+    const visualHeight = Math.max(MIN_BLOCK_PX, rawH);
+    const timeTop = minToPx(block.startMin);
+    const prevBottom = colVisualBottom[col] ?? 0;
+    const visualTop = Math.max(timeTop, prevBottom + 1);
+    colVisualBottom[col] = visualTop + visualHeight;
+
+    return { block, col, totalCols, visualTop, visualHeight };
   });
 }
-
-const MIN_BLOCK_PX = 32;
 
 export default function Timeline({ blocks, onSlotClick, onBlockClick, ghostBlocks = [], onGhostBlockClick, isToday }: Props) {
   const categories = useStore((s) => s.categories);
@@ -60,19 +72,16 @@ export default function Timeline({ blocks, onSlotClick, onBlockClick, ghostBlock
   }, [settings.timezone]);
 
   const containerHeight = (END_HOUR - START_HOUR + 1) * HOUR_PX;
-  const minToPx = (m: number) => ((m - START_HOUR * 60) / 60) * HOUR_PX;
 
   const hours = useMemo(() => Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => i + START_HOUR), []);
   const layout = useMemo(() => computeLayout(blocks), [blocks]);
   const ghostLayout = useMemo(() => computeLayout(ghostBlocks), [ghostBlocks]);
 
-  const renderBlock = ({ block: b, col, totalCols }: BlockLayout, ghost = false) => {
+  const renderBlock = ({ block: b, col, totalCols, visualTop: top, visualHeight: height }: BlockLayout, ghost = false) => {
     const cat = categories.find((c) => c.id === b.subCategoryId);
     if (!cat) return null;
 
-    const top = minToPx(b.startMin);
     const rawH = ((b.endMin - b.startMin) / 60) * HOUR_PX;
-    const height = Math.max(MIN_BLOCK_PX, rawH);
     const GAP = 2;
     const leftPct = `calc(${GUTTER}px + ${col} / ${totalCols} * (100% - ${GUTTER}px) + ${GAP}px)`;
     const widthPct = `calc((100% - ${GUTTER}px) / ${totalCols} - ${GAP * 2}px)`;

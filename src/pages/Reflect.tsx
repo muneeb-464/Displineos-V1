@@ -5,7 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { computeDayScore, useStore } from "@/lib/store";
 import { formatDateLong, isoFromDate, parseISODateLocal, todayISO } from "@/lib/utils";
-import { ChevronDown, ArrowRight, CalendarDays, BookOpen } from "lucide-react";
+import { ChevronDown, ArrowRight, CalendarDays, BookOpen, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -16,28 +16,51 @@ export default function Reflect() {
   const score = computeDayScore(date);
   const reflections = useStore((s) => s.reflections);
   const addReflection = useStore((s) => s.addReflection);
+  const updateReflection = useStore((s) => s.updateReflection);
+  const deleteReflection = useStore((s) => s.deleteReflection);
   const showNamaz = useStore((s) => s.settings.showNamazInLog);
 
   const [a, setA] = useState("");
   const [b, setB] = useState("");
   const [c, setC] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const startEdit = (r: typeof reflections[0]) => {
+    setEditingId(r.id);
+    setDate(r.date);
+    setA(r.wentWell);
+    setB(r.wasted);
+    setC(r.tomorrow);
+    setOpenId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setA(""); setB(""); setC("");
+  };
 
   const save = () => {
     if (!a.trim() && !b.trim() && !c.trim()) {
       toast.error("Write at least one reflection before saving.");
       return;
     }
-    addReflection({
-      date, wentWell: a, wasted: b, tomorrow: c,
-      score: score.total, productiveHours: score.productiveHours, namazCompleted: score.namazCompleted,
-    });
+    if (editingId) {
+      updateReflection(editingId, { wentWell: a, wasted: b, tomorrow: c });
+      setEditingId(null);
+      toast.success("Reflection updated.");
+    } else {
+      addReflection({
+        date, wentWell: a, wasted: b, tomorrow: c,
+        score: score.total, productiveHours: score.productiveHours, namazCompleted: score.namazCompleted,
+      });
+      toast.success("Reflection saved.");
+    }
     setA(""); setB(""); setC("");
-    toast.success("Reflection saved.");
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] min-h-screen">
+    <div className="mx-auto max-w-[1400px] grid grid-cols-1 lg:grid-cols-[3fr_2fr] min-h-screen">
 
       {/* ── LEFT — Form (sticky) ── */}
       <div className="lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto border-r border-border px-5 py-8 sm:px-8 sm:py-10">
@@ -64,7 +87,9 @@ export default function Reflect() {
             </Popover>
             <span className="text-xs text-muted-foreground">{formatDateLong(date)}</span>
           </div>
-          <h1 className="font-display text-3xl font-bold leading-tight">End of Day<br /><span className="text-primary">Reflection</span></h1>
+          <h1 className="font-display text-3xl font-bold leading-tight">
+            {editingId ? "Edit" : "End of Day"}<br /><span className="text-primary">Reflection</span>
+          </h1>
         </div>
 
         {/* Score summary */}
@@ -79,12 +104,19 @@ export default function Reflect() {
         <Field label="What did I waste time on?" value={b} onChange={setB} placeholder="Audit the friction points…" />
         <Field label="What will I do differently tomorrow?" value={c} onChange={setC} placeholder="Define the structural change…" />
 
-        <Button
-          onClick={save}
-          className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary-glow font-semibold mt-1"
-        >
-          Save Reflection <ArrowRight className="h-4 w-4 ml-2" />
-        </Button>
+        <div className="flex gap-2 mt-1">
+          {editingId && (
+            <Button variant="outline" onClick={cancelEdit} className="h-12 border-border">
+              Cancel
+            </Button>
+          )}
+          <Button
+            onClick={save}
+            className="flex-1 h-12 bg-primary text-primary-foreground hover:bg-primary-glow font-semibold"
+          >
+            {editingId ? "Update Reflection" : "Save Reflection"} <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
       </div>
 
       {/* ── RIGHT — Entries ── */}
@@ -143,6 +175,20 @@ export default function Reflect() {
                     <EntryDetail label="✅ What went well" text={r.wentWell} />
                     <EntryDetail label="⏱ What I wasted time on" text={r.wasted} />
                     <EntryDetail label="🔄 What I'll change tomorrow" text={r.tomorrow} />
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => startEdit(r)}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md border border-border hover:bg-surface-2 transition"
+                      >
+                        <Pencil className="h-3 w-3" /> Edit
+                      </button>
+                      <button
+                        onClick={() => { deleteReflection(r.id); setOpenId(null); toast.success("Reflection deleted."); }}
+                        className="flex items-center gap-1.5 text-xs text-destructive hover:text-destructive px-3 py-1.5 rounded-md border border-destructive/30 hover:bg-destructive/10 transition"
+                      >
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStore, PRAYERS, useTotalPoints, getRankInfo, RANKS } from "@/lib/store";
+import { useStore, PRAYERS, useTotalPoints, getRankInfo, RANKS, useStreaks } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { cn, todayISO } from "@/lib/utils";
 import { CategoryType } from "@/lib/types";
-import { Trash2, Plus, FolderPlus, LogOut } from "lucide-react";
+import { Trash2, Plus, FolderPlus, LogOut, ChevronDown, ChevronRight, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 
@@ -48,7 +48,7 @@ export default function SettingsPage() {
           </nav>
         </aside>
 
-        <div className="p-4 sm:p-6 lg:p-10 max-w-3xl min-w-0">
+        <div className="p-4 sm:p-6 lg:p-10 min-w-0">
           {section === "profile" && <ProfileSection />}
           {section === "goals" && <GoalsSection />}
           {section === "display" && <DisplaySection />}
@@ -139,8 +139,8 @@ function ProfileSection() {
           <div className="relative shrink-0">
             {isLoggedIn && user?.profilePicture ? (
               <img src={user.profilePicture} alt={user.name} referrerPolicy="no-referrer"
-                className="h-20 w-20 rounded-full object-cover ring-4"
-                style={{ ringColor: rankInfo.color + "55" }} />
+                className="h-20 w-20 rounded-full object-cover"
+                style={{ boxShadow: `0 0 0 4px ${rankInfo.color}44` }} />
             ) : (
               <div className="h-20 w-20 rounded-full bg-surface-3 grid place-items-center font-display text-2xl font-bold ring-4"
                 style={{ outlineColor: rankInfo.color, boxShadow: `0 0 0 4px ${rankInfo.color}44` }}>
@@ -311,19 +311,32 @@ const TYPE_COLOR_MAP: Record<CategoryType, string> = {
   wasted: "hsl(var(--destructive))",
 };
 
+const GROUP_META: Record<CategoryType, { label: string; pts: string; color: string }> = {
+  productive: { label: "Productive", pts: "+5 pts/hr", color: "hsl(var(--cat-productive))" },
+  routine:    { label: "Routine",    pts: "0 pts/hr",  color: "hsl(var(--cat-routine))"    },
+  wasted:     { label: "Wasted",     pts: "−5 pts/hr", color: "hsl(var(--cat-wasted))"     },
+};
+
 function CategoriesSection() {
-  const { categories, addCategory, deleteCategory } = useStore();
+  const { categories, addCategory, updateCategory, deleteCategory } = useStore();
   const [name, setName] = useState("");
   const [type, setType] = useState<CategoryType>("productive");
+  const [collapsed, setCollapsed] = useState<Record<CategoryType, boolean>>({
+    productive: false, routine: false, wasted: false,
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState<CategoryType>("productive");
+  const [editPts, setEditPts] = useState(0);
+  const [editDeepWork, setEditDeepWork] = useState(false);
 
-  const sorted = useMemo(
-    () => [...categories].sort((a, b) =>
-      TYPE_ORDER[a.type] !== TYPE_ORDER[b.type]
-        ? TYPE_ORDER[a.type] - TYPE_ORDER[b.type]
-        : a.name.localeCompare(b.name)
-    ),
-    [categories]
-  );
+  const grouped = useMemo(() => {
+    const map: Record<CategoryType, typeof categories> = { productive: [], routine: [], wasted: [] };
+    [...categories].sort((a, b) => a.name.localeCompare(b.name)).forEach((c) => map[c.type].push(c));
+    return map;
+  }, [categories]);
+
+  const toggle = (t: CategoryType) => setCollapsed((prev) => ({ ...prev, [t]: !prev[t] }));
 
   const add = () => {
     if (!name.trim()) return;
@@ -332,36 +345,154 @@ function CategoriesSection() {
     toast.success("Category added.");
   };
 
+  const startEdit = (c: typeof categories[0]) => {
+    setEditingId(c.id);
+    setEditName(c.name);
+    setEditType(c.type);
+    setEditPts(c.pointsPerHour);
+    setEditDeepWork(!!c.isDeepWork);
+  };
+
+  const saveEdit = () => {
+    if (!editingId || !editName.trim()) return;
+    updateCategory(editingId, {
+      name: editName.trim(),
+      type: editType,
+      pointsPerHour: editPts,
+      isDeepWork: editType === "productive" ? editDeepWork : false,
+    });
+    setEditingId(null);
+    toast.success("Category updated.");
+  };
+
   return (
     <div>
       <h2 className="font-display text-3xl font-bold mb-6">Categories Manager</h2>
-      <div className="space-y-2 mb-6">
-        {sorted.map((c) => (
-          <div key={c.id} className="surface-card p-4 flex items-center gap-4 border-l-4" style={{ borderLeftColor: TYPE_COLOR_MAP[c.type] }}>
-            <div className="flex-1">
-              <p className="font-semibold">{c.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">
-                {c.type} · {c.type === "productive" ? "+5" : c.type === "wasted" ? "−5" : "0"} pts/hr
-                {c.isDeepWork && " · deep work"}
-              </p>
+
+      <div className="space-y-3 mb-6">
+        {(["productive", "routine", "wasted"] as CategoryType[]).map((t) => {
+          const meta = GROUP_META[t];
+          const items = grouped[t];
+          const open = !collapsed[t];
+          return (
+            <div key={t} className="surface-card overflow-hidden">
+              <button
+                onClick={() => toggle(t)}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-2/50 transition"
+              >
+                <span className="h-3 w-3 rounded-sm shrink-0" style={{ background: meta.color }} />
+                <span className="font-semibold flex-1 text-left">{meta.label}</span>
+                <span className="text-xs text-muted-foreground mr-2">
+                  {items.length} {items.length === 1 ? "category" : "categories"} · {meta.pts}
+                </span>
+                {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+              </button>
+
+              {open && (
+                <div className="px-4 pb-4 border-t border-border/40">
+                  {items.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-3 text-center">No {meta.label.toLowerCase()} categories yet.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      {items.map((c) => (
+                        <div
+                          key={c.id}
+                          className="rounded-lg border border-border bg-surface-2 overflow-hidden"
+                          style={{ borderLeftColor: meta.color, borderLeftWidth: 3 }}
+                        >
+                          {editingId === c.id ? (
+                            <div className="p-2.5 space-y-2">
+                              <Input
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                className="h-7 text-xs bg-surface-3 border-border"
+                                autoFocus
+                                onKeyDown={(e) => e.key === "Enter" && saveEdit()}
+                              />
+                              <div className="flex gap-1.5">
+                                <select
+                                  value={editType}
+                                  onChange={(e) => setEditType(e.target.value as CategoryType)}
+                                  className="flex-1 bg-surface-3 border border-border rounded-md px-2 text-xs h-7"
+                                >
+                                  <option value="productive">Productive</option>
+                                  <option value="routine">Routine</option>
+                                  <option value="wasted">Wasted</option>
+                                </select>
+                                <Input
+                                  type="number"
+                                  value={editPts}
+                                  onChange={(e) => setEditPts(Number(e.target.value))}
+                                  className="w-14 h-7 text-xs bg-surface-3 border-border"
+                                  min={0}
+                                />
+                                <span className="text-[10px] text-muted-foreground self-center">pts</span>
+                              </div>
+                              {editType === "productive" && (
+                                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                                  <input type="checkbox" checked={editDeepWork} onChange={(e) => setEditDeepWork(e.target.checked)} className="accent-primary" />
+                                  Deep Work
+                                </label>
+                              )}
+                              <div className="flex gap-1.5">
+                                <button onClick={saveEdit} className="flex-1 flex items-center justify-center gap-1 h-7 rounded-md bg-primary text-primary-foreground text-xs">
+                                  <Check className="h-3 w-3" /> Save
+                                </button>
+                                <button onClick={() => setEditingId(null)} className="flex items-center justify-center h-7 w-7 rounded-md bg-surface-3 text-muted-foreground">
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 px-3 py-2.5">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-sm truncate">{c.name}</p>
+                                {c.isDeepWork && (
+                                  <p className="text-[10px] text-primary uppercase tracking-wider">deep work</p>
+                                )}
+                              </div>
+                              <button onClick={() => startEdit(c)} className="text-muted-foreground p-1.5 hover:bg-surface-3 rounded-md shrink-0">
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button onClick={() => deleteCategory(c.id)} className="text-destructive p-1.5 hover:bg-destructive/10 rounded-md shrink-0">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <button onClick={() => deleteCategory(c.id)} className="text-destructive p-2 hover:bg-destructive/10 rounded-md">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
+      {/* Add form */}
       <div className="surface-card p-5">
         <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Add category</p>
         <div className="grid grid-cols-[1fr_140px_auto] gap-2">
-          <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} className="bg-surface-2 border-border" onKeyDown={(e) => e.key === "Enter" && add()} />
-          <select value={type} onChange={(e) => setType(e.target.value as CategoryType)} className="bg-surface-2 border border-border rounded-md px-3 text-sm">
+          <Input
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="bg-surface-2 border-border"
+            onKeyDown={(e) => e.key === "Enter" && add()}
+          />
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as CategoryType)}
+            className="bg-surface-2 border border-border rounded-md px-3 text-sm"
+          >
             <option value="productive">Productive</option>
             <option value="routine">Routine</option>
             <option value="wasted">Wasted</option>
           </select>
-          <Button onClick={add} className="bg-primary text-primary-foreground"><Plus className="h-4 w-4" /></Button>
+          <Button onClick={add} className="bg-primary text-primary-foreground">
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>
@@ -464,11 +595,25 @@ function TemplatesSection() {
 }
 
 function StreakSection() {
-  const { settings, updateSettings, startedDays } = useStore();
+  const { settings, updateSettings } = useStore();
+  const { current: streak, last: lastStreak } = useStreaks();
   return (
     <div>
       <h2 className="font-display text-3xl font-bold mb-6">Streak Settings</h2>
-      <div className="surface-card p-6 max-w-md">
+
+      {/* Live streak cards */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="surface-card p-5 border-l-4 border-l-primary">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Current Streak</p>
+          <p className="font-display text-4xl font-bold text-primary">{streak}<span className="text-lg text-muted-foreground ml-1">days</span></p>
+        </div>
+        <div className="surface-card p-5 border-l-4 border-l-muted-foreground">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Last Streak</p>
+          <p className="font-display text-4xl font-bold">{lastStreak > 0 ? lastStreak : "—"}{lastStreak > 0 && <span className="text-lg text-muted-foreground ml-1">days</span>}</p>
+        </div>
+      </div>
+
+      <div className="surface-card p-6">
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Minimum productive hours per day to count as streak</Label>
         <Input
           type="number" min={1} max={14} step={0.5}
@@ -476,7 +621,7 @@ function StreakSection() {
           onChange={(e) => updateSettings({ streakMinHours: +e.target.value })}
           className="mt-2 bg-surface-2 border-border font-display text-2xl h-14"
         />
-        <p className="text-sm text-muted-foreground mt-4">Current streak: <span className="text-primary font-semibold">{startedDays.length} days</span></p>
+        <p className="text-xs text-muted-foreground mt-2">A day counts toward your streak only if productive hours meet this threshold.</p>
       </div>
     </div>
   );

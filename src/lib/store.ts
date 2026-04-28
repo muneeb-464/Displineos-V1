@@ -32,6 +32,8 @@ interface AppState {
   isNamazDone: (date: string, prayer: PrayerName) => boolean;
 
   addReflection: (r: Omit<Reflection, "id" | "createdAt">) => void;
+  updateReflection: (id: string, patch: Partial<Omit<Reflection, "id" | "createdAt">>) => void;
+  deleteReflection: (id: string) => void;
 
   addTemplate: (t: Omit<Template, "id">) => void;
   deleteTemplate: (id: string) => void;
@@ -116,6 +118,12 @@ export const useStore = create<AppState>()(
       addReflection: (r) => set((s) => ({
         reflections: [{ ...r, id: "r-" + uid(), createdAt: new Date().toISOString() }, ...s.reflections],
       })),
+      updateReflection: (id, patch) => set((s) => ({
+        reflections: s.reflections.map((r) => r.id === id ? { ...r, ...patch } : r),
+      })),
+      deleteReflection: (id) => set((s) => ({
+        reflections: s.reflections.filter((r) => r.id !== id),
+      })),
 
       addTemplate: (t) => set((s) => ({ templates: [...s.templates, { ...t, id: "t-" + uid() }] })),
       deleteTemplate: (id) => set((s) => ({ templates: s.templates.filter((t) => t.id !== id) })),
@@ -153,6 +161,8 @@ export const useStore = create<AppState>()(
           const localPrefs = {
             showNamazInLog: get().settings.showNamazInLog,
             namazInScore: get().settings.namazInScore,
+            timezone: get().settings.timezone,
+            timeFormat: get().settings.timeFormat,
           };
           
           set({
