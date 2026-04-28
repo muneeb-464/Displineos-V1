@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 import { TimeBlock } from "@/lib/types";
 import { formatDateLong, isoFromDate, isEditableDate, parseISODateLocal, todayISO } from "@/lib/utils";
-import { Plus, FolderOpen, Play, Bell, CalendarIcon, Lock } from "lucide-react";
+import { Plus, FolderOpen, Play, CalendarIcon, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -120,10 +120,6 @@ export default function Planner() {
 
         {/* Right rail — Today Summary only */}
         <aside className="p-4 sm:p-6 lg:p-8 space-y-5 xl:sticky xl:top-0 xl:h-screen xl:overflow-auto border-t border-border xl:border-t-0">
-          <div className="flex items-center justify-end gap-3 text-muted-foreground">
-            <Bell className="h-5 w-5" />
-          </div>
-
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Today's Summary</p>
           </div>

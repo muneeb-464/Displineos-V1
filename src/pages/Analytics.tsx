@@ -171,11 +171,21 @@ function RangeView({
         <div className={cn("grid gap-3", dates.length <= 7 ? "grid-cols-2 sm:grid-cols-4 lg:grid-cols-7" : "grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10")}>
           {report.dayScores.map((day) => {
             const neutral = !day.isStarted;
+            const isNeg = !neutral && day.total < 0;
             const intensity = !neutral && day.total > 0 ? Math.max(0.14, Math.min(1, day.total / maxScore)) : 0;
+            const negIntensity = isNeg ? Math.max(0.14, Math.min(1, Math.abs(day.total) / maxScore)) : 0;
+            const bg = neutral
+              ? "hsl(var(--muted) / 0.4)"
+              : isNeg
+                ? `hsl(var(--destructive) / ${negIntensity})`
+                : intensity
+                  ? `hsl(var(--primary) / ${intensity})`
+                  : "hsl(var(--surface-2))";
+            const textColor = intensity > 0.5 || negIntensity > 0.5 ? "hsl(var(--primary-foreground))" : isNeg ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))";
             return (
-              <div key={day.date} className="aspect-square rounded-xl p-2 text-center" style={{ background: neutral ? "hsl(var(--muted) / 0.4)" : intensity ? `hsl(var(--primary) / ${intensity})` : "hsl(var(--surface-2))", color: intensity > 0.5 ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }}>
-                <div className="text-[10px] uppercase tracking-wider">{format(parseISODateLocal(day.date), dates.length > 15 ? "d MMM" : "EEE")}</div>
-                <div className="mt-2 font-display text-lg font-bold">{neutral ? "·" : day.total || "–"}</div>
+              <div key={day.date} className="rounded-xl p-2 text-center h-14 flex flex-col justify-center" style={{ background: bg, color: textColor }}>
+                <div className="text-[10px] uppercase tracking-wider leading-none">{format(parseISODateLocal(day.date), dates.length > 15 ? "d MMM" : "EEE")}</div>
+                <div className="mt-1 font-display text-xl font-bold">{neutral ? "·" : day.total !== 0 ? day.total : "–"}</div>
               </div>
             );
           })}
@@ -265,12 +275,15 @@ function RangeView({
             <p className="text-sm text-muted-foreground">Track blocks to unlock the category breakdown.</p>
           ) : report.breakdown.map((item) => (
             <div key={item.id} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)_80px] sm:items-center sm:gap-4">
-              <div className="font-medium">{item.name}</div>
+              <div className="flex items-center gap-2 font-medium min-w-0">
+                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: TYPE_COLOR[item.type] }} />
+                <span className="truncate">{item.name}</span>
+              </div>
               <div className="font-mono text-sm">{item.hours.toFixed(1)}h</div>
               <div className="h-2 overflow-hidden rounded-full bg-surface-3">
-                <div className="h-full bg-primary" style={{ width: `${(item.hours / totalBreakdownHours) * 100}%` }} />
+                <div className="h-full" style={{ width: `${(item.hours / totalBreakdownHours) * 100}%`, background: TYPE_COLOR[item.type] }} />
               </div>
-              <div className="text-left font-mono text-sm text-primary sm:text-right">{item.points} pts</div>
+              <div className="text-left font-mono text-sm sm:text-right" style={{ color: TYPE_COLOR[item.type] }}>{item.points} pts</div>
             </div>
           ))}
         </div>
