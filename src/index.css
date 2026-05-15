@@ -4,13 +4,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* DisciplineOS — olive-green accent, warm light mode, dark mode unchanged. */
+/* DisciplineOS  olive-green accent, warm light mode, dark mode unchanged. */
 
 @layer base {
   :root {
     color-scheme: light;
 
-    /* Canvas — soft warm grey, easy on the eyes */
+    /* Canvas soft warm grey, easy on the eyes */
     --background: 40 18% 94%;
     --foreground: 0 0% 7%;          /* #121212 secondary */
 
