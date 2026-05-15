@@ -13,7 +13,7 @@ export interface TimeBlock {
   id: string;
   date: string; // YYYY-MM-DD
   subCategoryId: string;
-  startMin: number; // minutes from 00:00
+  startMin: number; // minutes 
   endMin: number;
   kind: "planned" | "logged";
   note?: string;
